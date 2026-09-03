@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# PyInstaller
+*.spec.bak
+
+# Installer output
+installer/*.exe
+
+# Voice model cache
+.cache/piper/
+.cache/supertonic3/
+
+# Temp files
+*.tmp
+*.log
+*.bak
+
+# Test files
+TEST.txt
+
+# Empty files
+python

@@ -1,0 +1,23 @@
+# Core dependencies
+PyQt6>=6.5.0
+numpy>=1.24.0
+sounddevice>=0.4.6
+
+# TTS engines
+edge-tts>=6.1.9
+piper-tts>=1.2.0
+supertonic>=3.0.0
+# pyttsx3>=2.90  # Optional fallback
+
+# Audio processing
+pydub>=0.25.1
+scipy>=1.10.0
+
+# File parsing
+striprtf>=0.0.26
+
+# HTTP requests for voice downloads
+requests>=2.28.0
+
+# Build tools
+pyinstaller>=5.13.0
