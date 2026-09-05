@@ -1,35 +1,14 @@
-# Core dependencies
-PySide6==6.6.1
-numpy==1.26.3
-sounddevice==0.4.6
+# GUI Framework
+PySide6>=6.6.0
 
-# TTS engines
-edge-tts==6.1.9
-piper-tts==1.2.0
-supertonic==3.0.0
-# pyttsx3==2.90  # Optional fallback
+# Audio & System
+numpy>=1.24.0
+sounddevice>=0.4.6
 
-# Audio processing
-pydub==0.25.1
-scipy==1.12.0
-
-# File parsing
-striprtf==0.0.26
-
-# HTTP requests for voice downloads
-requests==2.31.0
-
-# Build tools
-pyinstaller==6.3.0
-
-# Testing
-pytest==8.0.0
-pytest-cov==4.1.0
-pytest-qt==4.2.0
-
-# Linting
-flake8==7.0.0
-mypy==1.8.0
-
-# Logging
-colorlog==6.8.0
+# TTS Engines
+edge-tts>=6.1.9
+piper-tts>=1.2.0
+# Проверьте правильное название пакета для третьего движка. 
+# Если это 'supertonic', то версия 3.0.0 не существует. 
+# Попробуйте версию 1.3.1 или уточните название пакета.
+supertonic>=1.3.1
