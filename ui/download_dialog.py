@@ -1,10 +1,10 @@
 """Download progress dialog for model loading."""
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QProgressBar, QPushButton, QGroupBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
-from PyQt6.QtGui import QFont
+from PySide6.QtCore import Qt, QThread, pyqtSignal
+from PySide6.QtGui import QFont
 from typing import Optional
 import sys
 import io

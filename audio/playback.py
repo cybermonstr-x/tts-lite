@@ -2,7 +2,7 @@
 import time
 import numpy as np
 import sounddevice as sd
-from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTimer
+from PySide6.QtCore import QObject, pyqtSignal, QThread, QTimer
 import threading
 import queue
 import multiprocessing

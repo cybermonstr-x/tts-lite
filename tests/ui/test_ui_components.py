@@ -11,18 +11,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tts'))
 
 try:
-    from PyQt6.QtWidgets import QApplication
-    from PyQt6.QtCore import QTimer
-    PYQT_AVAILABLE = True
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QTimer
+    PYSIDE_AVAILABLE = True
 except ImportError:
-    PYQT_AVAILABLE = False
+    PYSIDE_AVAILABLE = False
 
 
 @pytest.fixture(scope="module")
 def app():
     """Create QApplication for tests"""
-    if not PYQT_AVAILABLE:
-        pytest.skip("PyQt6 not available")
+    if not PYSIDE_AVAILABLE:
+        pytest.skip("PySide6 not available")
     
     app = QApplication.instance()
     if app is None:

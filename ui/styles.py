@@ -1,6 +1,6 @@
 """QSS style loading and management."""
 from pathlib import Path
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 # Style directory
 STYLES_DIR = Path(__file__).parent.parent / "resources" / "styles"
