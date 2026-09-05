@@ -5,14 +5,14 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QPlainTextEdit, QPushButton, QLabel, QComboBox, QSlider,
     QProgressBar, QGroupBox, QMenuBar, QMenu, QStatusBar,
     QFileDialog, QMessageBox, QApplication, QScrollArea
 )
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QAction, QFont
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QAction, QFont
 
 from utils.config import Config
 from utils.translations import Translations

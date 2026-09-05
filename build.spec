@@ -21,10 +21,10 @@ datas = [
 
 # Hidden imports
 hiddenimports = [
-    'PyQt6',
-    'PyQt6.QtWidgets',
-    'PyQt6.QtCore',
-    'PyQt6.QtGui',
+    'PySide6',
+    'PySide6.QtWidgets',
+    'PySide6.QtCore',
+    'PySide6.QtGui',
     'numpy',
     'sounddevice',
     'piper',

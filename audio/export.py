@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import wave
 from pathlib import Path
-from PyQt6.QtCore import QObject, pyqtSignal, QThread
+from PySide6.QtCore import QObject, pyqtSignal, QThread
 
 # Set ffmpeg path before pydub is imported to suppress warning
 try:

@@ -1,0 +1,141 @@
+# pyproject.toml for TTS Lite
+# Modern Python project configuration
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tts-lite"
+version = "1.0.0"
+description = "Lightweight text-to-speech desktop application"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "TTS App Team", email = "cryptomonstrik@gmail.com"}
+]
+keywords = [
+    "tts",
+    "text-to-speech",
+    "speech-synthesis",
+    "desktop",
+    "pyside6",
+    "voice",
+    "audio"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Human Machine Interfaces",
+]
+
+dependencies = [
+    "PySide6==6.6.1",
+    "numpy==1.26.3",
+    "sounddevice==0.4.6",
+    "edge-tts==6.1.9",
+    "piper-tts==1.2.0",
+    "supertonic==3.0.0",
+    "pydub==0.25.1",
+    "scipy==1.12.0",
+    "striprtf==0.0.26",
+    "requests==2.31.0",
+    "imageio-ffmpeg>=0.4.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.0.0",
+    "pytest-cov==4.1.0",
+    "pytest-qt==4.2.0",
+    "flake8==7.0.0",
+    "mypy==1.8.0",
+    "colorlog==6.8.0",
+    "black==24.1.0",
+    "isort==5.13.2",
+]
+build = [
+    "pyinstaller==6.3.0",
+]
+
+[project.scripts]
+tts-lite = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/tts-lite"
+Repository = "https://github.com/yourusername/tts-lite.git"
+Issues = "https://github.com/yourusername/tts-lite/issues"
+Documentation = "https://github.com/yourusername/tts-lite#readme"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["audio*", "tts*", "ui*", "utils*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["audio", "tts", "ui", "utils"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --cov=tts_lite --cov-report=html --cov-report=term-missing"
+qt_api = "pyside6"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "build/*",
+    "dist/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
