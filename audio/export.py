@@ -6,7 +6,7 @@ import tempfile
 import numpy as np
 import wave
 from pathlib import Path
-from PySide6.QtCore import QObject, pyqtSignal, QThread
+from PySide6.QtCore import QObject, Signal, QThread
 
 # Set ffmpeg path before pydub is imported to suppress warning
 try:
@@ -41,10 +41,10 @@ def _configure_pydub():
 class ExportWorker(QThread):
     """Worker thread for audio export."""
     
-    progress_updated = pyqtSignal(float)
-    progress_text = pyqtSignal(str)
-    export_complete = pyqtSignal(str)
-    error_occurred = pyqtSignal(str)
+    progress_updated = Signal(float)
+    progress_text = Signal(str)
+    export_complete = Signal(str)
+    error_occurred = Signal(str)
     
     def __init__(self, tts_engine, sentences, voice_id, output_path, 
                  format_type, speed, pitch, parent=None):
@@ -150,11 +150,11 @@ class ExportWorker(QThread):
 class AudioExporter(QObject):
     """Manages audio export operations."""
     
-    export_started = pyqtSignal()
-    export_progress = pyqtSignal(float)
-    export_progress_text = pyqtSignal(str)
-    export_complete = pyqtSignal(str)
-    export_error = pyqtSignal(str)
+    export_started = Signal()
+    export_progress = Signal(float)
+    export_progress_text = Signal(str)
+    export_complete = Signal(str)
+    export_error = Signal(str)
     
     def __init__(self, tts_engine, parent=None):
         super().__init__(parent)

@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
     QProgressBar, QPushButton, QGroupBox
 )
-from PySide6.QtCore import Qt, QThread, pyqtSignal
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont
 from typing import Optional
 import sys
@@ -30,8 +30,8 @@ class RedirectOutput(io.StringIO):
 class DownloadWorker(QThread):
     """Worker thread for downloading model."""
     
-    progress = pyqtSignal(str)
-    finished = pyqtSignal(bool, str)
+    progress = Signal(str)
+    finished = Signal(bool, str)
     
     def __init__(self, engine):
         super().__init__()

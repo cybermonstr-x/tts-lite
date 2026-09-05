@@ -2,7 +2,7 @@
 import time
 import numpy as np
 import sounddevice as sd
-from PySide6.QtCore import QObject, pyqtSignal, QThread, QTimer
+from PySide6.QtCore import QObject, Signal, QThread, QTimer
 import threading
 import queue
 import multiprocessing
@@ -10,9 +10,9 @@ import multiprocessing
 class PlaybackWorker(QThread):
     """Worker thread for audio playback."""
     
-    position_changed = pyqtSignal(float)
-    playback_finished = pyqtSignal()
-    error_occurred = pyqtSignal(str)
+    position_changed = Signal(float)
+    playback_finished = Signal()
+    error_occurred = Signal(str)
     
     def __init__(self, audio_queue: queue.Queue, sample_rate: int):
         super().__init__()
@@ -139,12 +139,12 @@ class PlaybackWorker(QThread):
 class PlaybackManager(QObject):
     """Manages audio playback and TTS integration."""
     
-    playback_started = pyqtSignal()
-    playback_stopped = pyqtSignal()
-    playback_finished = pyqtSignal()
-    position_changed = pyqtSignal(float)
-    progress_updated = pyqtSignal(float)
-    error_occurred = pyqtSignal(str)
+    playback_started = Signal()
+    playback_stopped = Signal()
+    playback_finished = Signal()
+    position_changed = Signal(float)
+    progress_updated = Signal(float)
+    error_occurred = Signal(str)
     
     def __init__(self, tts_engine, parent=None):
         super().__init__(parent)

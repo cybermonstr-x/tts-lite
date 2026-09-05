@@ -1,44 +1,9 @@
-```gitignore
-# Dependencies
-.venv/
-venv/
+```
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-
-# Logs
-*.log
-
-# Environment files
 .env
 .env.local
-*.env.*
-
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*.tmp
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# MyPy cache
-.mypy_cache/
-
-# Pytest cache
-.pytest_cache/
+.env.*
 ```
