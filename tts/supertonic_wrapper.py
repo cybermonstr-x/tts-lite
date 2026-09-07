@@ -65,10 +65,10 @@ class SupertonicEngine(TTSEngine):
             self._tts = TTS(auto_download=True)
             return True
         except ImportError:
-            print("Supertonic not installed. Run: pip install supertonic")
+            logger.error("Supertonic not installed. Run: pip install supertonic")
             return False
         except Exception as e:
-            print(f"Failed to initialize Supertonic: {e}")
+            logger.error("Failed to initialize Supertonic: %s", e)
             return False
     
     def get_voices(self) -> List[VoiceInfo]:
@@ -82,8 +82,13 @@ class SupertonicEngine(TTSEngine):
     def synthesize(self, text: str, voice_id: str, speed: float = 1.0,
                    pitch: float = 1.0) -> Tuple[np.ndarray, int]:
         """Synthesize text to audio."""
+        from utils.security import validate_synthesis_text
+
         if not self._tts:
             raise RuntimeError("Supertonic engine not initialized")
+        text = validate_synthesis_text(text)
+        if voice_id not in {v.id for v in self.VOICES}:
+            raise RuntimeError(f"Unknown Supertonic voice: {voice_id}")
         
         try:
             if self.stop_event and self.stop_event.is_set():

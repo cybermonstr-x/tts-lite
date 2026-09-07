@@ -93,25 +93,58 @@ python build.py
 
 ## Dependencies
 
-| Library | License |
-|---------|---------|
-| [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) | GPL v3 |
-| [edge-tts](https://github.com/rany2/edge-tts) | MIT |
-| [piper-tts](https://github.com/rhasspy/piper) | MIT |
-| [supertonic](https://github.com/supertonic) | MIT |
-| [NumPy](https://numpy.org/) | BSD |
-| [SciPy](https://scipy.org/) | BSD |
-| [sounddevice](https://github.com/spatialaudio/python-sounddevice) | MIT |
-| [pydub](https://github.com/jiaaro/pydub) | MIT |
-| [striprtf](https://github.com/spanborder/striprtf) | MIT |
-| [requests](https://requests.readthedocs.io/) | Apache 2.0 |
-| [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | BSD |
+| Library | License | Notes |
+|---------|---------|-------|
+| [PySide6](https://www.qt.io/qt-for-python) | LGPL v3 | GUI framework (dynamic linking, MIT-compatible) |
+| [edge-tts](https://github.com/rany2/edge-tts) | MIT | Online engine wrapper |
+| [piper-tts](https://github.com/rhasspy/piper) | MIT | Offline engine wrapper |
+| [supertonic](https://github.com/supertonic) | MIT | Offline ONNX engine wrapper |
+| [NumPy](https://numpy.org/) | BSD | Audio buffers |
+| [SciPy](https://scipy.org/) | BSD | Resampling |
+| [sounddevice](https://github.com/spatialaudio/python-sounddevice) | MIT | Playback |
+| [pydub](https://github.com/jiaaro/pydub) | MIT | MP3 export (needs FFmpeg, see below) |
+| [striprtf](https://github.com/spanborder/striprtf) | MIT | RTF loading |
+| [requests](https://requests.readthedocs.io/) | Apache 2.0 | Model downloads (HTTPS only) |
+| [imageio-ffmpeg](https://github.com/imageio/imageio-ffmpeg) | BSD | Bundled FFmpeg binary provider |
+
+All dependencies are MIT/BSD/LGPL/Apache-2.0 licensed and compatible with
+the project's MIT license. There are no GPL (viral-license) dependencies:
+the GUI uses **PySide6 (LGPL v3)**, not PyQt6 (GPL v3), linked dynamically.
+
+### FFmpeg
+
+MP3 conversion uses FFmpeg obtained via the `imageio-ffmpeg` package, which
+downloads a prebuilt static binary (no system FFmpeg install required).
+FFmpeg itself is licensed under **LGPL v2.1+ / GPL** depending on build
+options — see [ffmpeg.org](https://ffmpeg.org/) and
+[ffmpeg.org/legal.html](https://ffmpeg.org/legal.html).
+The binary is used as an **external executable** (invoked as a subprocess),
+never linked into the application code, which keeps the MIT licensing of
+this project intact. When redistributing the installer, the FFmpeg license
+terms travel with the bundled binary; sources are available at
+[ffmpeg.org/download.html](https://ffmpeg.org/download.html).
 
 ### Voice models
 
-- **Piper TTS voices**: [MIT License](https://huggingface.co/rhasspy/piper-voices)
-- **Supertonic 3 model**: [MIT License](https://huggingface.co/supertonic)
-- **Edge TTS voices**: Microsoft Corporation (online service)
+- **Piper TTS voices**: [MIT License](https://huggingface.co/rhasspy/piper-voices),
+  by the Piper authors. Attribution is kept in the "About" data above; models
+  download automatically from Hugging Face over HTTPS with SHA-256 integrity
+  checks into the per-user cache (`~/.cache/tts-lite/models` on Linux/macOS,
+  `%LOCALAPPDATA%\tts_lite\models` on Windows).
+- **Supertonic 3 model**: [MIT License](https://huggingface.co/supertonic),
+  auto-downloaded by the `supertonic` package on first use.
+- **Edge TTS voices**: Microsoft Corporation online service (see Privacy below).
+
+### Privacy
+
+- **Edge TTS is cloud-based**: synthesis text is sent to Microsoft servers.
+  On first selection of Edge TTS the app shows an explicit consent dialog
+  («Этот движок отправляет текст в облачный сервис Microsoft. Вы соглашаетесь
+  с передачей данных?») and stores your choice (`edge_consent`) in settings.
+  Declining disables Edge TTS; Piper and Supertonic always work fully offline.
+- **Logs never contain full synthesis texts** — only a 10-character preview
+  plus length (e.g. for debug). No passwords, tokens or API keys are logged.
+- **Settings** are stored per-user only (see Configuration below).
 
 ## License
 
@@ -135,7 +168,7 @@ tts-lite/
 │   ├── edge_tts_wrapper.py
 │   ├── piper_wrapper.py
 │   └── supertonic_wrapper.py
-├── ui/                  # PyQt6 user interface
+├── ui/                  # PySide6 user interface
 │   ├── main_window.py   # Main application window
 │   ├── styles.py        # Theme definitions
 │   └── download_dialog.py
@@ -143,10 +176,14 @@ tts-lite/
 │   ├── playback.py      # Audio playback
 │   └── export.py        # File export (MP3/WAV)
 ├── utils/               # Utilities
-│   ├── config.py        # Settings management
+│   ├── config.py        # Settings management (QSettings, cross-platform)
+│   ├── security.py      # Path validation, filename sanitizing, log previews
+│   ├── logger.py        # Logging (no sensitive data, owner-only perms)
 │   ├── text_processing.py
 │   ├── translations.py  # i18n support
-│   └── file_loaders.py  # .txt/.rtf/.md loaders
+│   └── file_loaders.py  # .txt/.rtf/.md loaders (validated, size-limited)
+├── tests/               # pytest suite (unit + integration + UI + security)
+│   └── fixtures/        # sample.txt / sample.md / sample.rtf
 └── resources/           # Icons, styles, translations
 ```
 
@@ -170,18 +207,28 @@ This allows seamless switching between engines without changing UI code.
 
 ## Configuration
 
-Settings are stored in Windows Registry under `HKEY_CURRENT_USER\Software\TTSLite`:
+Settings use `QSettings` with the native per-OS backend
+(`TTSApp/TTSLite`):
+
+- **Windows**: `HKEY_CURRENT_USER\Software\TTSApp\TTSLite` (registry)
+- **Linux**: `~/.config/TTSApp/TTSLite.conf` (INI, `chmod 600`)
+- **macOS**: `~/Library/Preferences/com.TTSApp.TTSLite.plist` (`chmod 600`)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `theme` | String | `dark` | UI theme (`dark`/`light`) |
-| `language` | String | `en` | Interface language (`en`/`ru`) |
-| `last_engine` | String | `edge` | Last used TTS engine |
-| `last_voice` | String | - | Last selected voice |
-| `volume` | Integer | `75` | Playback volume (0-100) |
-| `rate` | Float | `1.0` | Speech rate multiplier |
+| `language` | String | `ru` | Interface language (`en`/`ru`) |
+| `engine` | String | `auto` | Preferred TTS engine |
+| `last_engine` | String | `edge_tts` | Last used TTS engine |
+| `voice` / `last_voice` | String | `ru_RU-irina-medium` | Selected voice |
+| `volume` | Integer | `80` | Playback volume (0-100) |
+| `speed` / `rate` | Float | `1.0` | Speech rate multiplier (0.5–2.0) |
+| `pitch` | Float | `1.0` | Voice pitch (0.5–2.0) |
 | `export_format` | String | `mp3` | Default export format |
-| `export_path` | String | Desktop | Default export directory |
+| `export_path` | String | - | Last export directory |
+| `last_directory` | String | - | Last opened file directory |
+| `edge_consent` | String | `unknown` | Edge TTS cloud consent (`accepted`/`declined`/`unknown`) |
+| `debug_mode` | Boolean | `false` | Verbose logging |
 
 ## Troubleshooting
 
@@ -204,7 +251,10 @@ Settings are stored in Windows Registry under `HKEY_CURRENT_USER\Software\TTSLit
 
 ### Logs
 
-Application logs are written to `%TEMP%\tts_lite.log`. Enable debug mode by setting environment variable:
+Application logs are written to `%TEMP%\tts_lite\tts_lite.log` on Windows
+and `~/.cache/tts-lite/logs/tts_lite.log` on Linux/macOS (rotated, 5 MB × 3).
+Logs never include full synthesis texts, passwords or tokens.
+Enable debug mode by setting environment variable:
 ```bash
 set TTS_LITE_DEBUG=1
 python main.py
@@ -250,14 +300,15 @@ pytest tests/ui/
 ## Roadmap
 
 ### Completed ✅
-- [x] Automated tests (unit + integration) - 67 tests passing
+- [x] Automated tests (unit + integration + UI + security, see `tests/`)
 - [x] CI/CD pipeline with GitHub Actions
 - [x] Cross-platform build script (Linux/macOS/Windows)
 - [x] UI test framework
+- [x] PySide6 (LGPL) GUI — no GPL dependencies
+- [x] Cross-platform settings (QSettings native backend per OS)
 
 ### In Progress 🔄
 - [ ] Linux/macOS support (build script ready, testing needed)
-- [ ] PySide6 compatibility layer for commercial use
 
 ### Planned 📋
 - [ ] Voice cloning feature
@@ -277,7 +328,10 @@ A: Initial development focused on Windows due to registry-based settings and Inn
 A: Currently no, but you can request voice additions via GitHub issues. Custom voice support is on the roadmap.
 
 **Q: Is commercial use allowed?**  
-A: Yes, under MIT license. However, note that PyQt6 uses GPL v3, which may require open-sourcing your derivative work. **Update**: PySide6 (LGPL) compatibility is planned for proprietary projects.
+A: Yes, under MIT license. The GUI uses PySide6 (LGPL v3), dynamically linked,
+which permits proprietary derivatives as long as LGPL terms are honored
+(provide LGPL license text, allow relinking, publish any LGPL-component
+modifications).
 
 **Q: How accurate is Supertonic 3?**  
 A: Supertonic 3 supports 31 languages with natural-sounding neural voices. Quality varies by language; best results for English, Russian, Spanish, and Chinese.

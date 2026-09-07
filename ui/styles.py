@@ -7,12 +7,13 @@ STYLES_DIR = Path(__file__).parent.parent / "resources" / "styles"
 
 def load_stylesheet(theme: str = "dark") -> str:
     """Load QSS stylesheet for the specified theme."""
+    from utils.logger import get_logger
     style_file = STYLES_DIR / f"{theme}.qss"
-    
+
     if not style_file.exists():
-        print(f"Style file not found: {style_file}")
+        get_logger(__name__).warning("Style file not found: %s", style_file)
         return ""
-    
+
     with open(style_file, 'r', encoding='utf-8') as f:
         return f.read()
 

@@ -28,12 +28,12 @@ APP_VERSION = "1.0.0"
 def _get_music_folder():
     try:
         import winreg
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
         music_dir = winreg.QueryValueEx(key, "My Music")[0]
         winreg.CloseKey(key)
         return music_dir
-    except:
+    except Exception:
         pass
     return str(Path.home() / "Music")
 
@@ -350,14 +350,31 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.status_bar.showMessage(f"TTS error: {e}")
     
+    def _ensure_edge_consent(self) -> bool:
+        """Ensure Edge TTS cloud consent; disable Edge if declined."""
+        from tts.edge_tts_wrapper import check_edge_consent
+        if check_edge_consent(self.config, self):
+            return True
+        self.status_bar.showMessage("Edge TTS отключён: нет согласия на передачу данных")
+        # Revert combo to a non-cloud engine if possible.
+        for i in range(self.engine_combo.count()):
+            if self.engine_combo.itemData(i) != "edge_tts":
+                self.engine_combo.setCurrentIndex(i)
+                break
+        return False
+
     def _on_engine_changed(self, index):
         name = self.engine_combo.currentData()
         if not name:
             return
+        if name == "edge_tts" and self.config.edge_consent != "accepted":
+            if not self._ensure_edge_consent():
+                return
         try:
             if self.playback_manager and self.playback_manager.is_playing:
                 self.playback_manager.stop()
             self.tts_engine = create_engine(name)
+            self.config.last_engine = name
             
             # Show download dialog for Supertonic if needed
             if name == "supertonic":
@@ -406,16 +423,38 @@ class MainWindow(QMainWindow):
         self.exporter.export_error.connect(self._on_error)
     
     def _load_settings(self):
-        g = self.config.get("window_geometry")
-        if g:
-            self.restoreGeometry(g)
+        try:
+            g = self.config.get("window_geometry")
+            if g:
+                self.restoreGeometry(g)
+        except Exception:
+            pass
         self.theme_combo.setCurrentIndex(0 if self.config.theme == "dark" else 1)
         self.lang_combo.setCurrentIndex(0 if self.config.language == "ru" else 1)
+        try:
+            saved_engine = self.config.last_engine or self.config.engine
+            for i in range(self.engine_combo.count()):
+                if self.engine_combo.itemData(i) == saved_engine:
+                    self.engine_combo.setCurrentIndex(i)
+                    break
+        except Exception:
+            pass
     
     def _save_settings(self):
         self.config.set("window_geometry", self.saveGeometry())
         self.config.save()
     
+    def _current_engine_name(self):
+        try:
+            return self.engine_combo.currentData()
+        except Exception:
+            return None
+
+    def _require_edge_consent_for_playback(self) -> bool:
+        if self._current_engine_name() == "edge_tts":
+            return self._ensure_edge_consent()
+        return True
+
     # File
     def _on_open(self):
         fp, _ = QFileDialog.getOpenFileName(self, self.translations.t("open"), self.config.last_directory, get_file_filter())
@@ -423,22 +462,36 @@ class MainWindow(QMainWindow):
             try:
                 self.text_edit.setPlainText(load_file(fp))
                 self.config.last_directory = str(Path(fp).parent)
-                self._current_file = Path(fp).stem
+                from utils.security import sanitize_filename
+                self._current_file = sanitize_filename(Path(fp).stem)
                 self._update_stats()
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
-    
+
     def _on_save_text(self):
+        from utils.security import sanitize_filename
         fp, _ = QFileDialog.getSaveFileName(self, self.translations.t("save"), self.config.last_directory, "Text Files (*.txt);;All Files (*)")
         if fp:
             try:
-                with open(fp, 'w', encoding='utf-8') as f:
+                path = Path(fp)
+                if path.suffix.lower() not in (".txt", ""):
+                    raise ValueError(f"Unsupported text format: {path.suffix!r}")
+                if not path.suffix:
+                    path = path.with_suffix(".txt")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                # Sanitize only the file name, keep the chosen directory.
+                safe = sanitize_filename(path.stem) + path.suffix.lower()
+                path = path.parent / safe
+                with open(path, 'w', encoding='utf-8') as f:
                     f.write(self.text_edit.toPlainText())
+                self.config.last_directory = str(path.parent)
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
     
     # Playback
     def _on_play(self):
+        if not self._require_edge_consent_for_playback():
+            return
         if self.playback_manager.is_playing:
             self.playback_manager._stop_event.set()
             if self.tts_engine and hasattr(self.tts_engine, 'stop'):
@@ -473,6 +526,8 @@ class MainWindow(QMainWindow):
     
     def _on_preview(self):
         if not self.tts_engine:
+            return
+        if not self._require_edge_consent_for_playback():
             return
         if self.playback_manager.is_playing:
             self.playback_manager._stop_event.set()
@@ -526,6 +581,7 @@ class MainWindow(QMainWindow):
         vid = self.voice_combo.currentData()
         if vid:
             self.config.voice = vid
+            self.config.last_voice = vid
     
     def _on_theme_changed(self, i):
         self.config.theme = "dark" if i == 0 else "light"
@@ -628,6 +684,8 @@ class MainWindow(QMainWindow):
     def _on_export(self):
         if not self.tts_engine:
             return
+        if not self._require_edge_consent_for_playback():
+            return
         text = self.text_edit.toPlainText()
         if not text.strip():
             QMessageBox.warning(self, self.translations.t("warning"), self.translations.t("no_text"))
@@ -654,17 +712,18 @@ class MainWindow(QMainWindow):
             return
         fmt = self.fmt_combo.currentText()
         
-        # Generate filename: textname_engine_voice_datetime
+        # Generate filename: textname_engine_voice_datetime (sanitized).
         from datetime import datetime
+        from utils.security import sanitize_filename
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        text_name = self._current_file or "tts"
-        
-        engine_name = self.engine_combo.currentData() or "tts"
-        
+
+        text_name = sanitize_filename(self._current_file or "tts")
+
+        engine_name = sanitize_filename(self.engine_combo.currentData() or "tts")
+
         voice_id = self.voice_combo.currentData() or "voice"
-        voice_name = voice_id.replace("-", "_").replace(" ", "_")
-        
+        voice_name = sanitize_filename(str(voice_id).replace("-", "_").replace(" ", "_"))
+
         filename = f"{text_name}_{engine_name}_{voice_name}_{now}.{fmt}"
         
         fp, _ = QFileDialog.getSaveFileName(self, self.translations.t("save_as"), 
@@ -685,10 +744,26 @@ class MainWindow(QMainWindow):
         self.preview_btn.setText(f"{t.t('preview')} (200)")
     
     def closeEvent(self, event):
-        if self.playback_manager and self.playback_manager.is_playing:
-            self.playback_manager.stop()
+        try:
+            if self.playback_manager and self.playback_manager.is_playing:
+                self.playback_manager.stop()
+        except Exception:
+            pass
+        try:
+            if self.exporter and self.exporter.is_exporting:
+                self.exporter.cancel_export()
+        except Exception:
+            pass
+        # Release TTS resources (stop Edge subprocess if running).
+        try:
+            if self.tts_engine and hasattr(self.tts_engine, 'stop'):
+                self.tts_engine.stop()
+        except Exception:
+            pass
         if self._temp_audio_path and os.path.exists(self._temp_audio_path):
-            try: os.unlink(self._temp_audio_path)
-            except: pass
+            try:
+                os.unlink(self._temp_audio_path)
+            except OSError:
+                pass
         self._save_settings()
         event.accept()

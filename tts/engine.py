@@ -1,11 +1,13 @@
 """TTS engine abstraction layer."""
-import os
 import io
-from pathlib import Path
-from typing import Optional, List, Tuple, Generator
+from typing import List, Tuple, Generator
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import numpy as np
+
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 @dataclass
 class VoiceInfo:
@@ -84,7 +86,7 @@ class FallbackEngine(TTSEngine):
                 ))
             return True
         except Exception as e:
-            print(f"Failed to initialize pyttsx3: {e}")
+            logger.error("Failed to initialize pyttsx3: %s", e)
             return False
     
     def get_voices(self) -> List[VoiceInfo]:

@@ -1,18 +1,49 @@
-```
 # Logs and temp files
 *.log
 *.tmp
 *.swp
+*~
 
-# Environment
+# Build / packaging
+build/
+dist/
+installer/
+*.egg-info/
+*.spec.bak
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Environment & secrets — never commit sensitive data
 .env
 .env.local
 *.env.*
+secrets.json
+*_secrets.json
+credentials.json
+*.pem
+*.key
 
-# Editors
+# App runtime data (models, logs, exports, local settings)
+models/
+*.onnx
+*.onnx.json
+tts_lite.log
+
+# Editors / OS
 .vscode/
 .idea/
-
-# Original rules preserved
-*.log
-```
+.DS_Store
+Thumbs.db
+desktop.ini

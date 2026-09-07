@@ -60,16 +60,20 @@ def main():
         sys.exit(exit_code)
         
     except Exception as e:
-        logger.critical(f"Fatal error: {e}", exc_info=True)
-        # Show error message to user
-        from PySide6.QtWidgets import QMessageBox, QApplication
-        app = QApplication.instance() or QApplication(sys.argv)
-        msg_box = QMessageBox()
-        msg_box.setIcon(QMessageBox.Icon.Critical)
-        msg_box.setWindowTitle("TTS Lite - Fatal Error")
-        msg_box.setText(f"A fatal error occurred: {e}")
-        msg_box.setDetailedText("Check the log file for more details.")
-        msg_box.exec()
+        logger.critical("Fatal error: %s", e, exc_info=True)
+        # Show error message to user (never create a second QApplication).
+        try:
+            from PySide6.QtWidgets import QMessageBox, QApplication
+            app = QApplication.instance()
+            if app is not None:
+                msg_box = QMessageBox()
+                msg_box.setIcon(QMessageBox.Icon.Critical)
+                msg_box.setWindowTitle("TTS Lite - Fatal Error")
+                msg_box.setText(f"A fatal error occurred: {e}")
+                msg_box.setDetailedText("Check the log file for more details.")
+                msg_box.exec()
+        except Exception:
+            pass
         sys.exit(1)
 
 if __name__ == "__main__":

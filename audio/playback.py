@@ -2,10 +2,9 @@
 import time
 import numpy as np
 import sounddevice as sd
-from PySide6.QtCore import QObject, Signal, QThread, QTimer
+from PySide6.QtCore import QObject, Signal, QThread
 import threading
 import queue
-import multiprocessing
 
 class PlaybackWorker(QThread):
     """Worker thread for audio playback."""
@@ -71,8 +70,10 @@ class PlaybackWorker(QThread):
                     if self._should_stop:
                         break
                     
-                    audio_chunk = audio_chunk * self._volume
-                    
+                    # NOTE: volume is applied once in _audio_callback.
+                    # Do NOT scale here to avoid double (squared) attenuation.
+                    audio_chunk = np.asarray(audio_chunk, dtype=np.float32)
+
                     with self._buffer_lock:
                         self._buffer = np.concatenate([self._buffer, audio_chunk])
                     

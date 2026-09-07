@@ -35,7 +35,7 @@ def _configure_pydub():
             import pydub
             pydub.AudioSegment.converter = ffmpeg_path
             os.environ["FFMPEG_BINARY"] = ffmpeg_path
-    except:
+    except Exception:
         pass
 
 class ExportWorker(QThread):
@@ -60,34 +60,54 @@ class ExportWorker(QThread):
     
     def run(self):
         """Perform export."""
+        from utils.security import validate_export_path, validate_synthesis_text
+
         try:
             _configure_pydub()
-            
+
+            # Validate destination early (fail fast, no wasted synthesis).
+            validated = validate_export_path(self.output_path, self.format_type)
+            self.output_path = str(validated)
+
             all_audio = []
             sample_rate = None
             total_sentences = len(self.sentences)
-            
+            if total_sentences == 0:
+                raise ValueError("No text to export")
+
             for i, sentence in enumerate(self.sentences):
                 if self._is_cancelled:
                     return
-                
+
                 self.progress_text.emit(f"Synthesizing {i+1}/{total_sentences}...")
-                
-                audio, sr = self.tts_engine.synthesize(
+
+                try:
+                    validate_synthesis_text(sentence)
+                except ValueError:
+                    continue  # skip empty sentences
+
+                result = self.tts_engine.synthesize(
                     sentence, self.voice_id,
                     self.speed, self.pitch
                 )
+                if result is None:
+                    # Synthesis was stopped/cancelled.
+                    return
+                audio, sr = result
                 all_audio.append(audio)
                 sample_rate = sr
-                
+
                 progress = (i + 1) / total_sentences
                 self.progress_updated.emit(progress)
-            
+
             if self._is_cancelled:
                 return
-            
+
+            if not all_audio:
+                raise ValueError("No audio generated (empty input?)")
+
             self.progress_text.emit("Saving file...")
-            
+
             audio = np.concatenate(all_audio)
             
             if self.format_type == 'wav':
@@ -134,12 +154,16 @@ class ExportWorker(QThread):
             )
         except ImportError:
             self.progress_text.emit("pydub not installed, saving as WAV...")
-            wav_path = str(self.output_path).replace('.mp3', '.wav')
+            wav_path = str(self.output_path)
+            if wav_path.lower().endswith('.mp3'):
+                wav_path = wav_path[:-4] + '.wav'
             self.output_path = wav_path
             self._save_wav(audio, sample_rate)
         except Exception as e:
             self.progress_text.emit(f"MP3 error: {e}. Saving as WAV...")
-            wav_path = str(self.output_path).replace('.mp3', '.wav')
+            wav_path = str(self.output_path)
+            if wav_path.lower().endswith('.mp3'):
+                wav_path = wav_path[:-4] + '.wav'
             self.output_path = wav_path
             self._save_wav(audio, sample_rate)
     
@@ -169,13 +193,26 @@ class AudioExporter(QObject):
         if self._worker and self._worker.isRunning():
             self.export_error.emit("Export already in progress")
             return
-        
+
         if not sentences:
             self.export_error.emit("No text to export")
             return
-        
-        output_dir = Path(output_path).parent
-        output_dir.mkdir(parents=True, exist_ok=True)
+
+        if format_type not in ('mp3', 'wav'):
+            self.export_error.emit(f"Unsupported format: {format_type}")
+            return
+
+        if not voice_id:
+            self.export_error.emit("No voice selected")
+            return
+
+        try:
+            from utils.security import validate_export_path
+            validated = validate_export_path(output_path, format_type)
+            output_path = str(validated)
+        except (ValueError, FileNotFoundError) as e:
+            self.export_error.emit(str(e))
+            return
         
         self._worker = ExportWorker(
             self.tts_engine,

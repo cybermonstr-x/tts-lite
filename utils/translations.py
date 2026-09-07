@@ -89,6 +89,10 @@ TRANSLATIONS = {
         "tooltip_progress": "Прогресс синтеза аудио",
         "tooltip_elapsed": "Прошедшее время воспроизведения",
         "tooltip_total": "Общее время воспроизведения",
+        "edge_consent_title": "Edge TTS — передача данных",
+        "edge_consent_text": "Движок Edge TTS отправляет текст в облачный сервис Microsoft для синтеза речи. Вы соглашаетесь с передачей данных?",
+        "edge_disabled": "Edge TTS отключён: нет согласия на передачу данных",
+        "privacy_note": "Piper и Supertonic работают полностью офлайн.",
     },
     "en": {
         "app_title": "TTS_Lite",
@@ -175,6 +179,10 @@ TRANSLATIONS = {
         "tooltip_progress": "Audio synthesis progress",
         "tooltip_elapsed": "Elapsed playback time",
         "tooltip_total": "Total playback time",
+        "edge_consent_title": "Edge TTS — data transfer",
+        "edge_consent_text": "The Edge TTS engine sends text to the Microsoft cloud service for speech synthesis. Do you agree to transmit the data?",
+        "edge_disabled": "Edge TTS disabled: no data-transfer consent",
+        "privacy_note": "Piper and Supertonic work fully offline.",
     }
 }
 

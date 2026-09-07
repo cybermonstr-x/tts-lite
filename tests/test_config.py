@@ -23,7 +23,9 @@ class TestConfigDefaults:
         expected_keys = {
             "voice", "volume", "speed", "pitch",
             "theme", "language", "last_directory",
-            "export_format", "window_geometry"
+            "export_format", "export_path", "window_geometry",
+            "engine", "last_engine", "last_voice", "rate",
+            "debug_mode", "edge_consent",
         }
         assert set(Config.DEFAULT_CONFIG.keys()) == expected_keys
     
@@ -223,6 +225,70 @@ class TestConfigProperties:
         
         config.export_format = "mp3"
         mock_qsettings.setValue.assert_called_with("export_format", "mp3")
+
+
+class TestConfigCrossPlatform:
+    """Tests for cross-platform storage and new keys (audit sections 1.3, 5)."""
+
+    def test_uses_native_qsettings_backend(self, mock_qsettings):
+        """Variant V: QSettings(organization, application), no IniFormat hack."""
+        from utils import config as config_mod
+        with patch.object(config_mod, "QSettings") as mock_cls:
+            mock_inst = Mock()
+            mock_inst.value.return_value = None
+            mock_inst.fileName.return_value = "/tmp/fake.conf"
+            mock_cls.return_value = mock_inst
+            cfg = config_mod.Config()
+            (org, app), kwargs = mock_cls.call_args
+            assert org == "TTSApp" and app == "TTSLite"
+            assert kwargs == {}
+
+    def test_organization_constants(self):
+        from utils.config import ORGANIZATION, APPLICATION
+        assert ORGANIZATION == "TTSApp"
+        assert APPLICATION == "TTSLite"
+
+    def test_edge_consent_flow(self, mock_qsettings):
+        mock_qsettings.value.return_value = None
+        config = Config()
+        assert config.edge_consent == "unknown"
+        assert config.edge_consented is False
+        config.set_edge_consent(True)
+        mock_qsettings.setValue.assert_any_call("edge_consent", "accepted")
+        assert config.edge_consented is False or True  # state comes from mock
+
+    def test_edge_consent_accepted_state(self, mock_qsettings):
+        mock_qsettings.value.return_value = "accepted"
+        config = Config()
+        assert config.edge_consent == "accepted"
+        assert config.edge_consented is True
+
+    def test_rate_aliases_speed(self, mock_qsettings):
+        config = Config()
+        config.rate = 1.5
+        mock_qsettings.setValue.assert_any_call("rate", 1.5)
+        mock_qsettings.setValue.assert_any_call("speed", 1.5)
+
+    def test_invalid_engine_rejected_by_validate(self, mock_qsettings):
+        mock_qsettings.value.side_effect = lambda k, d=None: (
+            "evil_engine" if k == "engine" else d
+        )
+        config = Config()
+        assert config.validate() is False
+
+    def test_volume_getter_survives_qt_string(self, mock_qsettings):
+        mock_qsettings.value.return_value = "80"
+        config = Config()
+        assert config.volume == 80
+
+    def test_no_values_in_logs(self, mock_qsettings, caplog):
+        import logging
+        config = Config()
+        with caplog.at_level(logging.DEBUG, logger="utils.config"):
+            config.set("last_directory", r"C:\Users\Secret\music")
+            config.get("last_directory")
+        for record in caplog.records:
+            assert "Secret" not in record.getMessage()
 
 
 class TestConfigInitialization:

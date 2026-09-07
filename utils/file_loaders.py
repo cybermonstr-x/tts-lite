@@ -1,40 +1,57 @@
 """File loaders for text files (.txt, .rtf, .md)."""
+import re
 from pathlib import Path
+
+from utils.logger import get_logger
+from utils.security import MAX_TEXT_FILE_SIZE, validate_input_path
+
+logger = get_logger(__name__)
+
+
+def _read_text_with_fallback(path: Path) -> str:
+    """Read text trying UTF-8 first, then cp1251/latin-1 as fallback."""
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        logger.warning("File %s is not valid UTF-8, trying fallback encodings", path.name)
+        for enc in ("cp1251", "latin-1"):
+            try:
+                return path.read_text(encoding=enc)
+            except (UnicodeDecodeError, OSError):
+                continue
+        raise ValueError(f"Cannot decode file {path.name}: unsupported encoding")
+
 
 def load_text_file(filepath):
     """Load plain text from .txt file."""
-    path = Path(filepath)
-    if not path.exists():
-        raise FileNotFoundError(f"File not found: {filepath}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
-        return f.read()
+    path = validate_input_path(filepath)
+    if path.suffix.lower() != ".txt":
+        raise ValueError(f"Expected .txt file, got: {path.suffix!r}")
+    return _read_text_with_fallback(path)
+
 
 def load_rtf_file(filepath):
     """Load and convert RTF to plain text."""
     try:
         from striprtf.striprtf import rtf_to_text
-        path = Path(filepath)
-        if not path.exists():
-            raise FileNotFoundError(f"File not found: {filepath}")
-        
-        with open(path, 'r', encoding='utf-8') as f:
-            rtf_content = f.read()
-        
-        return rtf_to_text(rtf_content)
     except ImportError:
         raise ImportError("striprtf library is required to load RTF files. Install with: pip install striprtf")
+    path = validate_input_path(filepath)
+    if path.suffix.lower() != ".rtf":
+        raise ValueError(f"Expected .rtf file, got: {path.suffix!r}")
+    rtf_content = _read_text_with_fallback(path)
+    if len(rtf_content) > MAX_TEXT_FILE_SIZE:
+        raise ValueError("RTF file too large")
+    return rtf_to_text(rtf_content)
+
 
 def load_markdown_file(filepath):
     """Load markdown file and convert to plain text."""
-    import re
-    path = Path(filepath)
-    if not path.exists():
-        raise FileNotFoundError(f"File not found: {filepath}")
-    
-    with open(path, 'r', encoding='utf-8') as f:
-        content = f.read()
-    
+    path = validate_input_path(filepath)
+    if path.suffix.lower() not in (".md", ".markdown"):
+        raise ValueError(f"Expected markdown file, got: {path.suffix!r}")
+    content = _read_text_with_fallback(path)
+
     # Simple markdown to plain text conversion
     # Remove headers
     content = re.sub(r'^#{1,6}\s+', '', content, flags=re.MULTILINE)
@@ -54,14 +71,15 @@ def load_markdown_file(filepath):
     content = re.sub(r'^[-*_]{3,}\s*$', '', content, flags=re.MULTILINE)
     # Remove extra whitespace
     content = re.sub(r'\n{3,}', '\n\n', content)
-    
+
     return content.strip()
 
+
 def load_file(filepath):
-    """Load file based on extension."""
+    """Load file based on extension (only supported types)."""
     path = Path(filepath)
     extension = path.suffix.lower()
-    
+
     if extension == '.txt':
         return load_text_file(filepath)
     elif extension == '.rtf':
@@ -69,12 +87,16 @@ def load_file(filepath):
     elif extension in ['.md', '.markdown']:
         return load_markdown_file(filepath)
     else:
-        # Try to load as plain text
-        return load_text_file(filepath)
+        raise ValueError(
+            f"Unsupported file type: {extension!r}. "
+            f"Supported: {', '.join(get_supported_extensions())}"
+        )
+
 
 def get_supported_extensions():
     """Return list of supported file extensions."""
     return ['.txt', '.rtf', '.md', '.markdown']
+
 
 def get_file_filter():
     """Return file filter string for file dialog."""

@@ -1,0 +1,2 @@
+Hello world. This is a sample text file for TTS Lite tests.
+Second sentence! Is everything working? Привет мир. Это русский текст.
