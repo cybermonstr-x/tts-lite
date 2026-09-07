@@ -1,0 +1,211 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # =========================================
+  # Тестирование и линтинг
+  # =========================================
+  
+  test:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Run tests with coverage
+      run: |
+        pytest tests/ -v --cov=tts_lite --cov-report=xml
+    
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.xml
+        fail_ci_if_error: false
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install linter
+      run: |
+        pip install flake8 black isort mypy
+    
+    - name: Run linter
+      run: |
+        flake8 . --max-line-length=120 --ignore=E203,W503 --exclude=venv,dist,build
+        
+    - name: Run black check
+      run: |
+        black --check --line-length=100 . --exclude venv,dist,build
+        
+    - name: Run type checking
+      run: |
+        mypy . --ignore-missing-imports --exclude venv --exclude dist --exclude build
+
+  # =========================================
+  # Сборка для разных платформ
+  # =========================================
+  
+  build-windows:
+    needs: [test, lint]
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable
+      run: |
+        pyinstaller build.spec --clean --noconfirm
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TTS_Lite_Windows
+        path: dist/TTS_Lite/
+        retention-days: 30
+
+  build-linux:
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable
+      run: |
+        pyinstaller build.spec --clean --noconfirm
+    
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TTS_Lite_Linux
+        path: dist/TTS_Lite/
+        retention-days: 30
+
+  build-macos:
+    needs: [test, lint]
+    runs-on: macos-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable
+      run: |
+        pyinstaller build.spec --clean --noconfirm
+    
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TTS_Lite_macOS
+        path: dist/TTS_Lite/
+        retention-days: 30
+
+  # =========================================
+  # Создание релиза на GitHub
+  # =========================================
+  
+  release:
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download Windows artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: TTS_Lite_Windows
+        path: artifacts/windows
+    
+    - name: Download Linux artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: TTS_Lite_Linux
+        path: artifacts/linux
+    
+    - name: Download macOS artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: TTS_Lite_macOS
+        path: artifacts/macos
+    
+    - name: Create archives
+      run: |
+        cd artifacts/windows && zip -r ../TTS_Lite_Windows.zip .
+        cd artifacts/linux && tar -czvf ../TTS_Lite_Linux.tar.gz .
+        cd artifacts/macos && tar -czvf ../TTS_Lite_macOS.tar.gz .
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/TTS_Lite_Windows.zip
+          artifacts/TTS_Lite_Linux.tar.gz
+          artifacts/TTS_Lite_macOS.tar.gz
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
