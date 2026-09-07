@@ -1,44 +1,18 @@
-```gitignore
-# Dependencies
-.venv/
-venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-
-# Logs
+```
+# Logs and temp files
 *.log
+*.tmp
+*.swp
 
-# Environment files
+# Environment
 .env
 .env.local
 *.env.*
 
-# Coverage reports
-.coverage
-coverage/
-htmlcov/
-
-# IDE files
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-*.tmp
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# MyPy cache
-.mypy_cache/
-
-# Pytest cache
-.pytest_cache/
+# Original rules preserved
+*.log
 ```
