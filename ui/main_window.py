@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QGroupBox, QMenuBar, QMenu, QStatusBar,
     QFileDialog, QMessageBox, QApplication, QScrollArea
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QAction, QFont
 
 from utils.config import Config
@@ -559,7 +559,7 @@ class MainWindow(QMainWindow):
                 is_dl = getattr(self.tts_engine, "is_voice_downloaded", None)
                 if callable(is_dl) and is_dl(voice_id):
                     return True
-                # Progress in main Progress block (Вариант А)
+                # Progress in main Progress block (Вариант А) — thread-safe via signals
                 self.voice_download_btn.setEnabled(False)
                 self.play_btn.setEnabled(False)
                 self.preview_btn.setEnabled(False)
@@ -568,41 +568,47 @@ class MainWindow(QMainWindow):
                 self.progress_label.setText(f"Загрузка голоса {voice_id}... 0%")
                 self.status_bar.showMessage(f"Загрузка голоса {voice_id}...")
 
-                def progress(p):
-                    try:
-                        pct = int(max(0, min(1, p)) * 100)
-                        self.progress_bar.setValue(pct)
-                        self.progress_label.setText(f"Загрузка {voice_id}... {pct}%")
-                        self.status_bar.showMessage(f"Загрузка {voice_id}... {pct}%")
-                    except Exception:
-                        pass
+                from PySide6.QtCore import QEventLoop
 
-                import threading
-                result = {"success": False}
-
-                def do_download():
-                    try:
-                        result["success"] = bool(self.tts_engine.download_voice(voice_id, progress_callback=progress))
-                    except Exception as e:
+                class _Worker(QThread):
+                    progressed = Signal(int)
+                    def __init__(self, engine, vid):
+                        super().__init__()
+                        self.engine = engine
+                        self.vid = vid
+                        self.ok = False
+                    def run(self):
+                        def cb(p):
+                            try:
+                                pct = int(max(0, min(1, p)) * 100)
+                                self.progressed.emit(pct)
+                            except Exception:
+                                pass
                         try:
-                            from utils.logger import get_logger
-                            get_logger(__name__).error("Piper download failed: %s", e)
-                        except Exception:
-                            pass
-                        result["success"] = False
+                            self.ok = bool(self.engine.download_voice(self.vid, progress_callback=cb))
+                        except Exception as e:
+                            try:
+                                from utils.logger import get_logger
+                                get_logger(__name__).error("Piper download failed: %s", e)
+                            except Exception:
+                                pass
+                            self.ok = False
 
-                th = threading.Thread(target=do_download, daemon=True)
-                th.start()
-                while th.is_alive():
-                    QApplication.processEvents()
-                    time.sleep(0.05)
+                worker = _Worker(self.tts_engine, voice_id)
+                loop = QEventLoop()
+                worker.progressed.connect(lambda pct: (self.progress_bar.setValue(pct), self.progress_label.setText(f"Загрузка {voice_id}... {pct}%"), self.status_bar.showMessage(f"Загрузка {voice_id}... {pct}%")))
+                worker.finished.connect(loop.quit)
+                worker.start()
+                loop.exec()
+                worker.wait()
+                ok = worker.ok
+                worker.deleteLater()
                 # Finalize progress UI
-                if result["success"]:
+                if ok:
                     self.progress_bar.setValue(100)
                     self.progress_label.setText(f"Голос {voice_id} загружен ✓")
                     self.status_bar.showMessage(f"Голос {voice_id} загружен")
                     self._update_voice_status()
-                    # Refresh suffix
                     try:
                         self._populate_voices()
                         for i in range(self.voice_combo.count()):
