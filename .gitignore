@@ -47,3 +47,6 @@ tts_lite.log
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local task description (not part of the repo)
+/задание на проверку проекта.txt
