@@ -145,6 +145,12 @@ class MainWindow(QMainWindow):
         self.voice_status_label.setWordWrap(True)
         self.voice_status_label.setStyleSheet("color: #f59e0b; font-size: 11px;")
         gl.addWidget(self.voice_status_label)
+        self.voice_download_btn = QPushButton("⬇ Скачать голос")
+        self.voice_download_btn.setMinimumHeight(28)
+        self.voice_download_btn.setVisible(False)
+        self.voice_download_btn.setToolTip("Скачать выбранный офлайн-голос")
+        self.voice_download_btn.clicked.connect(self._on_download_voice)
+        gl.addWidget(self.voice_download_btn)
         layout.addWidget(g)
         
         # Audio
@@ -502,7 +508,9 @@ class MainWindow(QMainWindow):
                     else:
                         downloaded = False
                     if not downloaded:
-                        self.voice_status_label.setText("⚠ Голос не скачан — будет загружен при первом воспроизведении (~50 МБ)")
+                        self.voice_status_label.setText("⚠ Голос не скачан — нажми «Скачать голос» (~50 МБ)")
+                        self.voice_download_btn.setVisible(True)
+                        self.voice_download_btn.setEnabled(True)
                         self.play_btn.setEnabled(False)
                         self.preview_btn.setEnabled(False)
                         self.export_btn.setEnabled(False)
@@ -514,85 +522,120 @@ class MainWindow(QMainWindow):
                     from tts.supertonic_wrapper import is_supertonic_downloaded
                     if not is_supertonic_downloaded():
                         self.voice_status_label.setText("⚠ Модель Supertonic не скачана — загрузка ~400 МБ при выборе движка")
+                        self.voice_download_btn.setVisible(False)
                         return
                 except Exception:
                     pass
             self.voice_status_label.setText("✓ Голос готов")
+            self.voice_download_btn.setVisible(False)
             self.play_btn.setEnabled(True)
             self.preview_btn.setEnabled(True)
             self.export_btn.setEnabled(True)
         except Exception:
             self.voice_status_label.setText("")
+            try:
+                self.voice_download_btn.setVisible(False)
+            except Exception:
+                pass
+
+    def _on_download_voice(self):
+        """Explicit download via 'Скачать голос' button — progress in Прогресс block."""
+        voice_id = self.voice_combo.currentData()
+        if not voice_id:
+            return
+        if self._ensure_voice_downloaded(voice_id):
+            # Refresh combo suffix (remove ↓) and status
+            self._populate_voices()
+            # Select the just-downloaded voice again
+            for i in range(self.voice_combo.count()):
+                if self.voice_combo.itemData(i) == voice_id:
+                    self.voice_combo.setCurrentIndex(i)
+                    break
 
     def _ensure_voice_downloaded(self, voice_id: str) -> bool:
-        """Ensure offline voice is downloaded, showing progress dialog. Returns True if ready."""
+        """Ensure offline voice is downloaded, showing progress in Прогресс block. Returns True if ready."""
         engine_name = self._current_engine_name()
         if engine_name == "piper":
             try:
                 is_dl = getattr(self.tts_engine, "is_voice_downloaded", None)
                 if callable(is_dl) and is_dl(voice_id):
                     return True
-                # Show progress dialog for Piper voice
-                from PySide6.QtWidgets import QProgressDialog
-                from PySide6.QtCore import Qt as QtCore
-
-                dlg = QProgressDialog(f"Загрузка голоса {voice_id}...", "Отмена", 0, 100, self)
-                dlg.setWindowTitle("Загрузка голоса Piper")
-                dlg.setWindowModality(QtCore.WindowModality.WindowModal)
-                dlg.setAutoClose(False)
-                dlg.setAutoReset(False)
-                dlg.setValue(0)
-                dlg.show()
-
-                ok = {"value": False, "cancelled": False}
+                # Progress in main Progress block (Вариант А)
+                self.voice_download_btn.setEnabled(False)
+                self.play_btn.setEnabled(False)
+                self.preview_btn.setEnabled(False)
+                self.export_btn.setEnabled(False)
+                self.progress_bar.setValue(0)
+                self.progress_label.setText(f"Загрузка голоса {voice_id}... 0%")
+                self.status_bar.showMessage(f"Загрузка голоса {voice_id}...")
 
                 def progress(p):
-                    # p is 0..1
                     try:
-                        if dlg.wasCanceled():
-                            ok["cancelled"] = True
-                            return
-                        dlg.setValue(int(p * 100))
+                        pct = int(max(0, min(1, p)) * 100)
+                        self.progress_bar.setValue(pct)
+                        self.progress_label.setText(f"Загрузка {voice_id}... {pct}%")
+                        self.status_bar.showMessage(f"Загрузка {voice_id}... {pct}%")
                     except Exception:
                         pass
 
-                # Run download in worker thread to keep UI responsive
                 import threading
                 result = {"success": False}
 
                 def do_download():
                     try:
                         result["success"] = bool(self.tts_engine.download_voice(voice_id, progress_callback=progress))
-                    except Exception:
+                    except Exception as e:
+                        try:
+                            from utils.logger import get_logger
+                            get_logger(__name__).error("Piper download failed: %s", e)
+                        except Exception:
+                            pass
                         result["success"] = False
 
                 th = threading.Thread(target=do_download, daemon=True)
                 th.start()
-                # Pump events while downloading
                 while th.is_alive():
                     QApplication.processEvents()
                     time.sleep(0.05)
-                    if dlg.wasCanceled():
-                        break
-                dlg.close()
-                if result["success"] and not dlg.wasCanceled():
+                # Finalize progress UI
+                if result["success"]:
+                    self.progress_bar.setValue(100)
+                    self.progress_label.setText(f"Голос {voice_id} загружен ✓")
                     self.status_bar.showMessage(f"Голос {voice_id} загружен")
                     self._update_voice_status()
+                    # Refresh suffix
+                    try:
+                        self._populate_voices()
+                        for i in range(self.voice_combo.count()):
+                            if self.voice_combo.itemData(i) == voice_id:
+                                self.voice_combo.blockSignals(True)
+                                self.voice_combo.setCurrentIndex(i)
+                                self.voice_combo.blockSignals(False)
+                                break
+                    except Exception:
+                        pass
                     return True
                 else:
-                    self.status_bar.showMessage("Загрузка отменена или не удалась")
+                    self.progress_bar.setValue(0)
+                    self.progress_label.setText("Загрузка не удалась")
+                    self.status_bar.showMessage("Загрузка не удалась")
                     QMessageBox.warning(self, "Загрузка", f"Не удалось загрузить голос {voice_id}. Проверь интернет.")
+                    self._update_voice_status()
                     return False
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", f"Ошибка загрузки голоса: {e}")
+                self._update_voice_status()
                 return False
         elif engine_name == "supertonic":
             try:
-                from tts.supertonic_wrapper import is_supertonic_downloaded, show_download_dialog_if_needed
+                from tts.supertonic_wrapper import is_supertonic_downloaded
                 if is_supertonic_downloaded():
                     return True
                 from ui.download_dialog import show_download_dialog
-                return bool(show_download_dialog(self.tts_engine, self))
+                ok = bool(show_download_dialog(self.tts_engine, self))
+                if ok:
+                    self._update_voice_status()
+                return ok
             except Exception:
                 return True
         return True
