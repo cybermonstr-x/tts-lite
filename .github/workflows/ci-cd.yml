@@ -25,8 +25,10 @@ jobs:
         pip install pytest pytest-cov
     
     - name: Run tests with coverage
+      env:
+        QT_QPA_PLATFORM: offscreen
       run: |
-        pytest tests/ -v --cov=tts_lite --cov-report=xml
+        pytest tests/ -v --cov=. --cov-report=xml
     
     - name: Upload coverage report
       uses: codecov/codecov-action@v4
@@ -51,4 +53,4 @@ jobs:
     
     - name: Run linter
       run: |
-        flake8 tts_lite/ tests/ --max-line-length=120 --ignore=E203,W503
+        flake8 . --max-line-length=120 --ignore=E203,W503 --exclude=venv,dist,build
