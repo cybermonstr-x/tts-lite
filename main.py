@@ -35,7 +35,7 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName("TTS_Lite")
         app.setOrganizationName("TTSApp")
-        app.setApplicationVersion("1.0.0")
+        app.setApplicationVersion("1.0.3")
         
         # Initialize configuration
         try:

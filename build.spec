@@ -19,7 +19,7 @@ datas = [
     ('resources/icons/*', 'resources/icons'),
 ]
 
-# Hidden imports
+# Hidden imports — must include runtime deps that PyInstaller misses via static analysis
 hiddenimports = [
     'PySide6',
     'PySide6.QtWidgets',
@@ -27,7 +27,9 @@ hiddenimports = [
     'PySide6.QtGui',
     'numpy',
     'sounddevice',
+    'soundfile',
     'piper',
+    'onnxruntime',
     'pydub',
     'scipy',
     'scipy.signal',
@@ -36,9 +38,10 @@ hiddenimports = [
     'edge_tts',
     'supertonic',
     'imageio_ffmpeg',
+    'unittest',  # supertonic imports unittest at runtime
 ]
 
-# Excluded modules to speed up build
+# Excluded modules to speed up build (do NOT exclude unittest — supertonic needs it)
 excludes = [
     'torch', 'torchvision', 'torchaudio',
     'transformers', 'tokenizers',
@@ -56,7 +59,6 @@ excludes = [
     'notebook', 'notebook.',
     'ipykernel', 'ipykernel.',
     'pytest', 'pytest.',
-    'unittest',
     'xmlrpc',
     'pydoc',
     'pdb', 'pdb.',
