@@ -233,8 +233,8 @@ jobs:
     
     - name: Create archives
       run: |
-        # Windows portable — zip без вложенной папки artifacts/windows
-        powershell -Command "Compress-Archive -Path artifacts/windows/* -DestinationPath artifacts/TTS_Lite_Windows.zip -Force"
+        # Windows portable — zip без вложенной папки artifacts/windows (subshell, чтобы не ломать cd)
+        (cd artifacts/windows && zip -r ../TTS_Lite_Windows.zip .)
         tar -czvf artifacts/TTS_Lite_Linux.tar.gz -C artifacts/linux .
         tar -czvf artifacts/TTS_Lite_macOS.tar.gz -C artifacts/macos .
     
