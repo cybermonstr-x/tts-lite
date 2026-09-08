@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tts-lite"
-version = "1.0.4"
+version = "1.0.5"
 description = "Lightweight text-to-speech desktop application"
 readme = "README.md"
 license = {text = "MIT"}
