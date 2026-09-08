@@ -39,13 +39,14 @@ def preview_text(text: str, max_chars: int = 10) -> str:
 def sanitize_filename(name: str, max_len: int = 80) -> str:
     """Strip dangerous characters from a file name stem.
 
-    Removes path separators, ``..``, control chars and OS-reserved symbols.
-    Returns ``'tts'`` if nothing safe remains.
+    Removes path separators (both / and \\), ``..``, control chars and
+    OS-reserved symbols. Returns ``'tts'`` if nothing safe remains.
     """
     if not name:
         return "tts"
     # Drop any directory components first (defence against '../' input).
-    name = Path(name).name
+    # Handle both Unix and Windows path separators on all platforms.
+    name = name.replace('\\', '/').split('/')[-1]
     # Replace reserved/special chars with underscore.
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
     name = name.replace("..", "_")
