@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
         gl.addWidget(self.voice_status_label)
         self.voice_download_btn = QPushButton("⬇ Скачать голос")
         self.voice_download_btn.setMinimumHeight(28)
-        self.voice_download_btn.setVisible(False)
+        self.voice_download_btn.setEnabled(False)
         self.voice_download_btn.setToolTip("Скачать выбранный офлайн-голос")
         self.voice_download_btn.clicked.connect(self._on_download_voice)
         gl.addWidget(self.voice_download_btn)
@@ -509,7 +509,6 @@ class MainWindow(QMainWindow):
                         downloaded = False
                     if not downloaded:
                         self.voice_status_label.setText("⚠ Голос не скачан — нажми «Скачать голос» (~50 МБ)")
-                        self.voice_download_btn.setVisible(True)
                         self.voice_download_btn.setEnabled(True)
                         self.play_btn.setEnabled(False)
                         self.preview_btn.setEnabled(False)
@@ -522,19 +521,19 @@ class MainWindow(QMainWindow):
                     from tts.supertonic_wrapper import is_supertonic_downloaded
                     if not is_supertonic_downloaded():
                         self.voice_status_label.setText("⚠ Модель Supertonic не скачана — загрузка ~400 МБ при выборе движка")
-                        self.voice_download_btn.setVisible(False)
+                        self.voice_download_btn.setEnabled(False)
                         return
                 except Exception:
                     pass
             self.voice_status_label.setText("✓ Голос готов")
-            self.voice_download_btn.setVisible(False)
+            self.voice_download_btn.setEnabled(False)
             self.play_btn.setEnabled(True)
             self.preview_btn.setEnabled(True)
             self.export_btn.setEnabled(True)
         except Exception:
             self.voice_status_label.setText("")
             try:
-                self.voice_download_btn.setVisible(False)
+                self.voice_download_btn.setEnabled(False)
             except Exception:
                 pass
 
