@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TTS Lite — лёгкий десктопный синтез речи | Windows · Linux · macOS</title>
+<meta name="description" content="TTS Lite — бесплатная программа для озвучки текста. 3 движка: Edge TTS (онлайн), Piper и Supertonic 3 (офлайн). 18 голосов, экспорт MP3/WAV, тёмная тема. Скачать для Windows, Linux и macOS.">
+<meta property="og:title" content="TTS Lite — лёгкий синтез речи">
+<meta property="og:description" content="Офлайн и онлайн голоса, экспорт MP3/WAV. Бесплатно, MIT.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cybermonstr-x.github.io/tts-lite/">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230f172a'/><path d='M8 10h10a4 4 0 010 8H12v4H8zM9.5 11.5v5H18a2.5 2.5 0 000-5z' fill='white'/><circle cx='23' cy='19' r='3' fill='none' stroke='white' stroke-width='1.7'/><path d='M25.5 16.5l3-3M25.5 21.5l3 3' stroke='white' stroke-width='1.4' stroke-linecap='round'/></svg>">
+<style>
+:root{--bg:#0b1220;--card:#111d33;--line:#1e2e4a;--text:#e6edf7;--muted:#9fb0c8;--accent:#3b82f6;--accent2:#22d3ee;--ok:#22c55e}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.55 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--text);background:radial-gradient(1200px 600px at 70% -10%,#1a2f5c 0%,transparent 60%),radial-gradient(900px 500px at 10% 0%,#0e3a4a 0%,transparent 55%),var(--bg)}
+a{color:#7db4ff;text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+.top{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(11,18,32,.75);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:16px;min-height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
+.logo i{width:32px;height:32px;border-radius:8px;background:#0f172a;border:1px solid #24365a;display:grid;place-items:center;font-style:normal}
+.nav{margin-left:auto;display:flex;gap:18px;align-items:center}
+.nav a{color:var(--muted);font-weight:600;font-size:14px}.nav a:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:12px;border:1px solid transparent;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#081122;box-shadow:0 6px 20px rgba(59,130,246,.35)}
+.btn-ghost{background:rgba(255,255,255,.06);border-color:var(--line);color:var(--text)}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.hero{padding:48px 0 20px;display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:center}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+.h1{font-size:42px;line-height:1.05;margin:10px 0;font-weight:900;letter-spacing:-.02em}
+.lead{color:var(--muted);font-size:17px;max-width:62ch}
+.pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.25);color:#a5f3fc;font-size:12px;font-weight:700;letter-spacing:.04em}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.hero-card{padding:16px;background:var(--card)}
+.shot{aspect-ratio:16/10;border-radius:12px;border:1px solid #22365a;background:#0a1224;display:grid;place-items:center;color:var(--muted);font-size:13px;overflow:hidden;position:relative}
+.shot::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(59,130,246,.18),transparent 55%),repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0 1px,transparent 1px 28px)}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.badge{padding:6px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:800px){.grid3{grid-template-columns:1fr}}
+.feat{padding:16px}.feat h3{margin:8px 0 6px;font-size:15px}.feat p{margin:0;color:var(--muted);font-size:13px}
+.sec{padding:28px 0}
+.sec h2{font-size:22px;margin:0 0 12px}.sec p.lead{margin:0 0 16px}
+.downloads{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:900px){.downloads{grid-template-columns:1fr}}
+.dl{padding:16px;display:flex;flex-direction:column;gap:10px}
+.dl h3{margin:0;font-size:15px;display:flex;gap:8px;align-items:center}
+.meta{color:var(--muted);font-size:12px}
+.kbd{font:12px/1 ui-monospace,Consolas,monospace;background:rgba(255,255,255,.08);border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th,.table td{border:1px solid var(--line);padding:8px 10px;text-align:left}
+.table th{background:rgba(255,255,255,.05);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.note{padding:12px 14px;border-radius:12px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.28);color:#fde68a;font-size:13px}
+.footer{padding:28px 0 40px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);margin-top:18px}
+.links{display:flex;gap:14px;flex-wrap:wrap}
+.hl{color:var(--text)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="logo"><i>🔊</i> TTS Lite <span style="color:var(--muted);font-weight:600">v1.0.1</span></div>
+    <nav class="nav">
+      <a href="#download">Скачать</a>
+      <a href="#voices">Голоса</a>
+      <a href="https://github.com/cybermonstr-x/tts-lite" target="_blank" rel="noopener">GitHub</a>
+      <a class="btn btn-primary" href="#download">Скачать</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <span class="pill">● 3 движка · 18 голосов · офлайн и онлайн · MIT</span>
+      <h1 class="h1">Лёгкая озвучка текста<br>на Windows, Linux и macOS</h1>
+      <p class="lead">Вставь текст или открой <span class="kbd">.txt</span> <span class="kbd">.rtf</span> <span class="kbd">.md</span> — выбери голос и нажми Play. Предпросмотр 200 символов, экспорт в MP3/WAV, тёмная тема, русский/английский интерфейс.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 10px">
+        <a class="btn btn-primary" id="ctaPrimary" href="#download">⬇ Скачать</a>
+        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest" target="_blank" rel="noopener">Релизы на GitHub →</a>
+      </div>
+      <div class="badges">
+        <span class="badge">PySide6 · LGPL</span><span class="badge">Offline: Piper, Supertonic</span><span class="badge">Online: Edge TTS</span><span class="badge">177 тестов</span>
+      </div>
+      <div class="note">Edge TTS отправляет текст в облако Microsoft — при первом выборе спросим согласие. Piper и Supertonic работают полностью офлайн.</div>
+    </div>
+    <div class="card hero-card">
+      <div class="shot">Скриншот появится здесь — добавь <span class="kbd">docs/screenshot.png</span></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <span class="badge">▶ Play / ■ Stop</span><span class="badge">Preview 200</span><span class="badge">MP3 / WAV</span><span class="badge">Темы · Язык</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="grid3">
+      <div class="card feat"><div style="font-size:18px">⚡</div><h3>Быстро и отзывчиво</h3><p>Потоковый синтез и мгновенный Stop. Разбивка на предложения, оценка длительности, прогресс-бар.</p></div>
+      <div class="card feat"><div style="font-size:18px">🔒</div><h3>Приватно</h3><p>Логи без полных текстов, защита от path traversal, HTTPS-загрузки моделей с SHA-256.</p></div>
+      <div class="card feat"><div style="font-size:18px">🧩</div><h3>Кроссплатформенно</h3><p>QSettings нативно: реестр Windows, INI на Linux, plist на macOS. Сборка через PyInstaller.</p></div>
+    </div>
+  </section>
+
+  <section id="download" class="sec">
+    <h2>Скачать</h2>
+    <p class="lead">Выбери систему. Файлы лежат в <a href="https://github.com/cybermonstr-x/tts-lite/releases/latest" target="_blank" rel="noopener">Releases</a> — всегда последняя версия. Если ссылка не открылась, зайди в Releases вручную.</p>
+    <div class="downloads">
+      <div class="card dl">
+        <h3>🪟 Windows</h3><div class="meta">Windows 10/11 · x64 · <span class="kbd">.zip</span> → <span class="kbd">TTS_Lite.exe</span></div>
+        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.1/TTS_Lite_Windows.zip">Скачать для Windows</a>
+        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest">Все релизы</a>
+        <div class="meta">Распаковать и запустить <span class="kbd">TTS_Lite.exe</span></div>
+      </div>
+      <div class="card dl">
+        <h3>🐧 Linux</h3><div class="meta">Ubuntu 22.04+ · x64 · <span class="kbd">.tar.gz</span></div>
+        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.1/TTS_Lite_Linux.tar.gz">Скачать для Linux</a>
+        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest">Все релизы</a>
+        <div class="meta"><span class="kbd">tar -xzf TTS_Lite_Linux.tar.gz && ./TTS_Lite/TTS_Lite</span></div>
+      </div>
+      <div class="card dl">
+        <h3>🍎 macOS</h3><div class="meta">macOS 13+ · Intel/Apple Silicon · <span class="kbd">.tar.gz</span></div>
+        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.1/TTS_Lite_macOS.tar.gz">Скачать для macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest">Все релизы</a>
+        <div class="meta"><span class="kbd">tar -xzf TTS_Lite_macOS.tar.gz</span> → открыть <span class="kbd">TTS_Lite.app</span></div>
+      </div>
+    </div>
+    <p class="meta" style="margin-top:10px">Если антивирус ругается на <span class="kbd">.exe</span> — это ложное срабатывание PyInstaller, добавь в исключения. Хеш SHA-256 смотри в описании релиза.</p>
+  </section>
+
+  <section id="voices" class="sec">
+    <h2>Голоса</h2>
+    <div class="grid3">
+      <div class="card" style="padding:14px">
+        <h3 style="margin:0 0 8px">Edge TTS <span class="meta">онлайн</span></h3>
+        <table class="table"><tr><th>Voice</th><th>Язык</th></tr><tr><td>ru-RU-DmitryNeural</td><td>RU муж.</td></tr><tr><td>ru-RU-SvetlanaNeural</td><td>RU жен.</td></tr><tr><td>en-US-BrianNeural</td><td>EN муж.</td></tr><tr><td>en-US-EmmaNeural</td><td>EN жен.</td></tr></table>
+      </div>
+      <div class="card" style="padding:14px">
+        <h3 style="margin:0 0 8px">Piper <span class="meta">офлайн</span></h3>
+        <table class="table"><tr><th>Voice</th><th>Язык</th></tr><tr><td>ru_RU-irina-medium</td><td>RU жен.</td></tr><tr><td>ru_RU-ruslan-medium</td><td>RU муж.</td></tr><tr><td>en_US-lessac-medium</td><td>EN муж.</td></tr><tr><td>en_US-amy-medium</td><td>EN жен.</td></tr></table>
+        <div class="meta" style="margin-top:8px">Модели качаются по HTTPS в кэш пользователя, проверка SHA-256.</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <h3 style="margin:0 0 8px">Supertonic 3 <span class="meta">офлайн · ONNX</span></h3>
+        <div class="meta">M1-M5 муж., F1-F5 жен. · 31 язык, авто-скачка ~400 МБ при первом запуске.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Установка и запуск</h2>
+    <div class="card" style="padding:14px">
+      <div class="grid3" style="gap:10px">
+        <div><div class="meta">Windows</div><div class="kbd">TTS_Lite_Windows.zip → распаковать → TTS_Lite.exe</div></div>
+        <div><div class="meta">Linux</div><div class="kbd">tar -xzf TTS_Lite_Linux.tar.gz && ./TTS_Lite/TTS_Lite</div></div>
+        <div><div class="meta">macOS</div><div class="kbd">tar -xzf TTS_Lite_macOS.tar.gz && open TTS_Lite.app</div></div>
+      </div>
+      <p class="meta" style="margin:10px 0 0">Из исходников: <span class="kbd">pip install -r requirements.txt && python main.py</span> · Сборка: <span class="kbd">pyinstaller build.spec</span> · Тесты: <span class="kbd">pytest -q</span> (177 passed)</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>Приватность и лицензии</h2>
+    <div class="card" style="padding:14px">
+      <p class="meta" style="margin:0"><span class="hl">MIT</span> — можно коммерчески. GUI <span class="hl">PySide6 LGPL v3</span> (динамически). FFmpeg через <span class="kbd">imageio-ffmpeg</span> как внешний бинарник. Голоса Piper/Supertonic — MIT. Логи без полных текстов, настройки только у текущего пользователя (<span class="kbd">chmod 600</span> на Linux/macOS).</p>
+      <div class="links" style="margin-top:10px"><a href="https://github.com/cybermonstr-x/tts-lite/blob/master/LICENSE.txt">LICENSE</a><a href="https://github.com/cybermonstr-x/tts-lite">GitHub</a><a href="https://github.com/cybermonstr-x/tts-lite/issues">Issues</a></div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap" style="display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap">
+    <div>© 2026 TTS Lite · <a href="mailto:cryptomonstrik@gmail.com">cryptomonstrik@gmail.com</a> · <a href="https://github.com/cybermonstr-x/tts-lite">github.com/cybermonstr-x/tts-lite</a></div>
+    <div>Сделано для пет-проекта — как у нормальных проектов: тесты, CI, релизы, лендинг.</div>
+  </div>
+</footer>
+
+<script>
+// подсветить кнопку под текущую ОС
+const ua=navigator.userAgent.toLowerCase();
+let target="#download";
+if(ua.includes("win")) target='a[href*="Windows.zip"]';
+else if(ua.includes("mac")) target='a[href*="macOS"]';
+else if(ua.includes("linux")) target='a[href*="Linux"]';
+const el=document.querySelector(target);
+if(el) document.getElementById("ctaPrimary").href=el.href;
+</script>
+</body>
+</html>
