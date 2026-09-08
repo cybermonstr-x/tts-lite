@@ -106,6 +106,24 @@ jobs:
         path: dist/TTS_Lite/
         retention-days: 30
 
+    - name: Build Windows installer
+      shell: pwsh
+      run: |
+        choco install innosetup -y --no-progress
+        $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+        if (!(Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+        $ver = "${{ github.ref_name }}".TrimStart('v')
+        if (-not $ver) { $ver = "1.0.2" }
+        & $iscc "installer.iss" "/DMyAppVersion=$ver"
+        Get-ChildItem installer\*.exe | Format-Table Name,Length
+
+    - name: Upload Windows installer artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TTS_Lite_Windows_Setup
+        path: installer/setup_TTS_Lite_*.exe
+        retention-days: 30
+
   build-linux:
     needs: [test]
     runs-on: ubuntu-latest
@@ -194,13 +212,19 @@ jobs:
       with:
         name: TTS_Lite_Windows
         path: artifacts/windows
-    
+
+    - name: Download Windows installer
+      uses: actions/download-artifact@v4
+      with:
+        name: TTS_Lite_Windows_Setup
+        path: artifacts/windows-setup
+
     - name: Download Linux artifact
       uses: actions/download-artifact@v4
       with:
         name: TTS_Lite_Linux
         path: artifacts/linux
-    
+
     - name: Download macOS artifact
       uses: actions/download-artifact@v4
       with:
@@ -209,7 +233,8 @@ jobs:
     
     - name: Create archives
       run: |
-        zip -r artifacts/TTS_Lite_Windows.zip artifacts/windows
+        # Windows portable — zip без вложенной папки artifacts/windows
+        powershell -Command "Compress-Archive -Path artifacts/windows/* -DestinationPath artifacts/TTS_Lite_Windows.zip -Force"
         tar -czvf artifacts/TTS_Lite_Linux.tar.gz -C artifacts/linux .
         tar -czvf artifacts/TTS_Lite_macOS.tar.gz -C artifacts/macos .
     
@@ -220,6 +245,7 @@ jobs:
           artifacts/TTS_Lite_Windows.zip
           artifacts/TTS_Lite_Linux.tar.gz
           artifacts/TTS_Lite_macOS.tar.gz
+          artifacts/windows-setup/*.exe
         generate_release_notes: true
         draft: false
         prerelease: false

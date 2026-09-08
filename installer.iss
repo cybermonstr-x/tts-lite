@@ -1,17 +1,20 @@
-; Inno Setup Script for TTS_Lite Application v1.0.0
+; Inno Setup Script for TTS_Lite Application
+#ifndef MyAppVersion
+#define MyAppVersion "1.0.2"
+#endif
 
 [Setup]
 AppId={{B1E3A4F2-5C6D-4E7F-8A9B-0C1D2E3F4A5B}
 AppName=TTS_Lite
-AppVersion=1.0.0
+AppVersion={#MyAppVersion}
 AppPublisher=TTS Lite Application
-AppPublisherURL=https://github.com/ttsapp
+AppPublisherURL=https://github.com/cybermonstr-x/tts-lite
 AppSupportURL=cryptomonstrik@gmail.com
 AppContact=cryptomonstrik@gmail.com
 DefaultDirName={autopf}\TTS_Lite
 DefaultGroupName=TTS_Lite
 OutputDir=installer
-OutputBaseFilename=setup_TTS_Lite_1.0.0
+OutputBaseFilename=setup_TTS_Lite_{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

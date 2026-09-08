@@ -61,7 +61,7 @@ a{color:#7db4ff;text-decoration:none}a:hover{text-decoration:underline}
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="logo"><i>🔊</i> TTS Lite <span style="color:var(--muted);font-weight:600">v1.0.1</span></div>
+    <div class="logo"><i>🔊</i> TTS Lite <span style="color:var(--muted);font-weight:600">v1.0.2</span></div>
     <nav class="nav">
       <a href="#download">Скачать</a>
       <a href="#voices">Голоса</a>
@@ -108,20 +108,21 @@ a{color:#7db4ff;text-decoration:none}a:hover{text-decoration:underline}
     <p class="lead">Выбери систему. Файлы лежат в <a href="https://github.com/cybermonstr-x/tts-lite/releases/latest" target="_blank" rel="noopener">Releases</a> — всегда последняя версия. Если ссылка не открылась, зайди в Releases вручную.</p>
     <div class="downloads">
       <div class="card dl">
-        <h3>🪟 Windows</h3><div class="meta">Windows 10/11 · x64 · <span class="kbd">.zip</span> → <span class="kbd">TTS_Lite.exe</span></div>
-        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.1/TTS_Lite_Windows.zip">Скачать для Windows</a>
-        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest">Все релизы</a>
-        <div class="meta">Распаковать и запустить <span class="kbd">TTS_Lite.exe</span></div>
+        <h3>🪟 Windows</h3><div class="meta">Windows 10/11 · x64 · установщик + portable</div>
+        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.2/setup_TTS_Lite_1.0.2.exe">⬇ Установщик (рекомендуется)</a>
+        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.2/TTS_Lite_Windows.zip">Portable .zip</a>
+        <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest" style="margin-top:6px">Все релизы</a>
+        <div class="meta">Установщик → <span class="kbd">setup_TTS_Lite_1.0.2.exe</span> · Portable → распаковать <span class="kbd">TTS_Lite.exe</span></div>
       </div>
       <div class="card dl">
         <h3>🐧 Linux</h3><div class="meta">Ubuntu 22.04+ · x64 · <span class="kbd">.tar.gz</span></div>
-        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.1/TTS_Lite_Linux.tar.gz">Скачать для Linux</a>
+        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.2/TTS_Lite_Linux.tar.gz">Скачать для Linux</a>
         <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest">Все релизы</a>
         <div class="meta"><span class="kbd">tar -xzf TTS_Lite_Linux.tar.gz && ./TTS_Lite/TTS_Lite</span></div>
       </div>
       <div class="card dl">
         <h3>🍎 macOS</h3><div class="meta">macOS 13+ · Intel/Apple Silicon · <span class="kbd">.tar.gz</span></div>
-        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.1/TTS_Lite_macOS.tar.gz">Скачать для macOS</a>
+        <a class="btn btn-primary" href="https://github.com/cybermonstr-x/tts-lite/releases/download/v1.0.2/TTS_Lite_macOS.tar.gz">Скачать для macOS</a>
         <a class="btn btn-ghost" href="https://github.com/cybermonstr-x/tts-lite/releases/latest">Все релизы</a>
         <div class="meta"><span class="kbd">tar -xzf TTS_Lite_macOS.tar.gz</span> → открыть <span class="kbd">TTS_Lite.app</span></div>
       </div>
@@ -180,7 +181,7 @@ a{color:#7db4ff;text-decoration:none}a:hover{text-decoration:underline}
 // подсветить кнопку под текущую ОС
 const ua=navigator.userAgent.toLowerCase();
 let target="#download";
-if(ua.includes("win")) target='a[href*="Windows.zip"]';
+if(ua.includes("win")) target='a[href*="setup_TTS"]';
 else if(ua.includes("mac")) target='a[href*="macOS"]';
 else if(ua.includes("linux")) target='a[href*="Linux"]';
 const el=document.querySelector(target);

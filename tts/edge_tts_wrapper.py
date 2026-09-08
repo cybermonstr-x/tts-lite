@@ -224,12 +224,81 @@ class EdgeTTSEngine(TTSEngine):
             except OSError:
                 pass
 
+    def _synthesize_direct(self, text, voice_id, rate, max_retries=3):
+        """Direct synthesis without subprocess — used in frozen exe.
+
+        The subprocess path spawns sys.executable. In a PyInstaller
+        --windowed build that is TTS_Lite.exe itself, spawning it opens
+        a second GUI window. For frozen builds we run edge-tts in-process.
+        """
+        import asyncio
+        import edge_tts
+
+        if sys.platform == "win32":
+            try:
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+            except Exception:
+                pass
+
+        last_error = None
+        for attempt in range(max_retries):
+            if self._stop_event and self._stop_event.is_set():
+                return None
+            tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+            tmp_path = tmp.name
+            tmp.close()
+            try:
+                async def _do():
+                    communicate = edge_tts.Communicate(text, voice_id, rate=rate)
+                    await communicate.save(tmp_path)
+
+                loop = asyncio.new_event_loop()
+                try:
+                    loop.run_until_complete(_do())
+                finally:
+                    loop.close()
+
+                if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                    return tmp_path
+                if os.path.exists(tmp_path):
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1)
+                    continue
+                raise RuntimeError("No audio generated after retries")
+            except Exception as e:
+                if os.path.exists(tmp_path):
+                    try:
+                        os.unlink(tmp_path)
+                    except OSError:
+                        pass
+                if self._stop_event and self._stop_event.is_set():
+                    return None
+                last_error = e
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(1)
+                    continue
+                raise RuntimeError(f"Edge TTS error: {e}") from e
+        if last_error:
+            raise RuntimeError(f"Edge TTS error: {last_error}") from last_error
+        raise RuntimeError("Edge TTS: No valid response")
+
     def _synthesize_via_subprocess(self, text, voice_id, rate, max_retries=3):
         """Synthesize via separate Python process to avoid asyncio thread issues.
 
         No shell is used (argv list) and no user data is embedded in code:
         parameters are passed as a JSON job file.
+        In frozen (PyInstaller) builds sys.executable is the exe itself,
+        spawning it would open a second GUI window — use direct mode there.
         """
+        if getattr(sys, "frozen", False):
+            return self._synthesize_direct(text, voice_id, rate, max_retries)
+
         job_file = tempfile.NamedTemporaryFile(
             suffix='.json', delete=False, mode='w', encoding='utf-8'
         )
