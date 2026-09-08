@@ -23,7 +23,7 @@ from audio.playback import PlaybackManager
 from audio.export import AudioExporter
 from ui.styles import apply_theme
 
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.0.4"
 
 def _get_music_folder():
     try:

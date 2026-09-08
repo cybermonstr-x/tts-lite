@@ -38,10 +38,13 @@ hiddenimports = [
     'edge_tts',
     'supertonic',
     'imageio_ffmpeg',
-    'unittest',  # supertonic imports unittest at runtime
+    'unittest',  # supertonic imports unittest/pydoc at runtime
+    'pydoc',
+    'xmlrpc',
+    'xmlrpc.client',
 ]
 
-# Excluded modules to speed up build (do NOT exclude unittest — supertonic needs it)
+# Excluded modules to speed up build (do NOT exclude unittest/pydoc/xmlrpc — supertonic needs them)
 excludes = [
     'torch', 'torchvision', 'torchaudio',
     'transformers', 'tokenizers',
@@ -59,8 +62,6 @@ excludes = [
     'notebook', 'notebook.',
     'ipykernel', 'ipykernel.',
     'pytest', 'pytest.',
-    'xmlrpc',
-    'pydoc',
     'pdb', 'pdb.',
     'profile', 'cProfile',
     'distutils', 'distutils.',
