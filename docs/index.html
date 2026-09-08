@@ -87,12 +87,11 @@ a{color:#7db4ff;text-decoration:none}a:hover{text-decoration:underline}
       <div class="note">Edge TTS отправляет текст в облако Microsoft — при первом выборе спросим согласие. Piper и Supertonic работают полностью офлайн.</div>
     </div>
     <div class="card hero-card">
-      <img src="screenshot.png" alt="TTS Lite — тёмная тема" style="width:100%;display:block;border-radius:12px;border:1px solid #22365a" loading="lazy">
+      <img id="heroShot" src="screenshot.png" alt="TTS Lite — тёмная тема" style="width:100%;display:block;border-radius:12px;border:1px solid #22365a" loading="lazy">
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
         <span class="badge">▶ Play / ■ Stop</span><span class="badge">Preview 200</span><span class="badge">MP3 / WAV</span><span class="badge">Темы · Язык</span>
-        <a href="screenshot-light.png" target="_blank" rel="noopener" class="badge" style="text-decoration:none">Светлая тема →</a>
+        <button id="themeToggle" type="button" class="badge" style="cursor:pointer;background:rgba(255,255,255,.08)">Светлая тема →</button>
       </div>
-      <img src="screenshot-light.png" alt="TTS Lite — светлая тема" style="width:100%;display:block;border-radius:12px;border:1px solid #22365a;margin-top:10px" loading="lazy">
     </div>
   </section>
 
@@ -186,6 +185,16 @@ else if(ua.includes("mac")) target='a[href*="macOS"]';
 else if(ua.includes("linux")) target='a[href*="Linux"]';
 const el=document.querySelector(target);
 if(el) document.getElementById("ctaPrimary").href=el.href;
+// переключение скриншота тёмная/светлая в том же окне
+const shot=document.getElementById("heroShot");
+const btn=document.getElementById("themeToggle");
+let dark=true;
+btn.addEventListener("click",()=>{
+  dark=!dark;
+  shot.src=dark?"screenshot.png":"screenshot-light.png";
+  shot.alt=dark?"TTS Lite — тёмная тема":"TTS Lite — светлая тема";
+  btn.textContent=dark?"Светлая тема →":"Тёмная тема →";
+});
 </script>
 </body>
 </html>
