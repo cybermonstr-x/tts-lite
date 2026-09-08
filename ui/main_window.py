@@ -58,7 +58,8 @@ class MainWindow(QMainWindow):
         self._init_tts()
         self._init_playback()
         self._load_settings()
-        
+        self._load_default_text()
+
         apply_theme(QApplication.instance(), self.config.theme)
     
     def _init_ui(self):
@@ -140,6 +141,10 @@ class MainWindow(QMainWindow):
         self.voice_combo.setToolTip(t.t("tooltip_voice"))
         self.voice_combo.currentIndexChanged.connect(self._on_voice_changed)
         gl.addWidget(self.voice_combo)
+        self.voice_status_label = QLabel("")
+        self.voice_status_label.setWordWrap(True)
+        self.voice_status_label.setStyleSheet("color: #f59e0b; font-size: 11px;")
+        gl.addWidget(self.voice_status_label)
         layout.addWidget(g)
         
         # Audio
@@ -395,14 +400,25 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(f"Engine error: {e}")
     
     def _populate_voices(self):
+        self.voice_combo.blockSignals(True)
         self.voice_combo.clear()
         for v in self.tts_engine.get_voices():
-            self.voice_combo.addItem(f"{v.name} ({v.language})", v.id)
+            # Mark offline voices that need download
+            suffix = ""
+            try:
+                if self._current_engine_name() == "piper" and hasattr(self.tts_engine, "is_voice_downloaded"):
+                    if not self.tts_engine.is_voice_downloaded(v.id):
+                        suffix = "  ↓ скачать"
+            except Exception:
+                pass
+            self.voice_combo.addItem(f"{v.name} ({v.language}){suffix}", v.id)
         saved = self.config.voice
         for i in range(self.voice_combo.count()):
             if self.voice_combo.itemData(i) == saved:
                 self.voice_combo.setCurrentIndex(i)
                 break
+        self.voice_combo.blockSignals(False)
+        self._update_voice_status()
     
     def _init_playback(self):
         if not self.tts_engine:
@@ -440,6 +456,147 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
     
+    def _load_default_text(self):
+        """Load README.md into editor if empty (pet-project requirement #3)."""
+        try:
+            if self.text_edit.toPlainText().strip():
+                return
+            # Try frozen bundle first (dist/_internal or exe dir), then project root
+            candidates = []
+            if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+                candidates.append(Path(sys._MEIPASS) / "README.md")
+                candidates.append(Path(sys.executable).parent / "README.md")
+                candidates.append(Path(sys.executable).parent / "_internal" / "README.md")
+            candidates.append(Path(__file__).parent.parent / "README.md")
+            for p in candidates:
+                if p.is_file():
+                    text = p.read_text(encoding="utf-8", errors="ignore")
+                    # Use first ~8k chars to avoid huge initial text
+                    if len(text) > 8000:
+                        text = text[:8000].rsplit("\n", 1)[0]
+                    self.text_edit.setPlainText(text)
+                    self._current_file = "README"
+                    self._update_stats()
+                    return
+            # Fallback demo text if README not found
+            self.text_edit.setPlainText("Привет! Это TTS Lite. Вставь свой текст сюда и нажми Play.\n\nHello! This is TTS Lite. Paste your text here and press Play.")
+            self._update_stats()
+        except Exception:
+            pass
+
+    def _update_voice_status(self):
+        """Show 'need download' hint for offline voices and block playback."""
+        try:
+            engine_name = self._current_engine_name()
+            voice_id = self.voice_combo.currentData()
+            if not voice_id:
+                self.voice_status_label.setText("")
+                return
+            if engine_name == "piper":
+                try:
+                    from tts.piper_wrapper import PiperEngine
+                    # Use engine instance check if it has the method
+                    is_dl = getattr(self.tts_engine, "is_voice_downloaded", None)
+                    if callable(is_dl):
+                        downloaded = is_dl(voice_id)
+                    else:
+                        downloaded = False
+                    if not downloaded:
+                        self.voice_status_label.setText("⚠ Голос не скачан — будет загружен при первом воспроизведении (~50 МБ)")
+                        self.play_btn.setEnabled(False)
+                        self.preview_btn.setEnabled(False)
+                        self.export_btn.setEnabled(False)
+                        return
+                except Exception:
+                    pass
+            elif engine_name == "supertonic":
+                try:
+                    from tts.supertonic_wrapper import is_supertonic_downloaded
+                    if not is_supertonic_downloaded():
+                        self.voice_status_label.setText("⚠ Модель Supertonic не скачана — загрузка ~400 МБ при выборе движка")
+                        return
+                except Exception:
+                    pass
+            self.voice_status_label.setText("✓ Голос готов")
+            self.play_btn.setEnabled(True)
+            self.preview_btn.setEnabled(True)
+            self.export_btn.setEnabled(True)
+        except Exception:
+            self.voice_status_label.setText("")
+
+    def _ensure_voice_downloaded(self, voice_id: str) -> bool:
+        """Ensure offline voice is downloaded, showing progress dialog. Returns True if ready."""
+        engine_name = self._current_engine_name()
+        if engine_name == "piper":
+            try:
+                is_dl = getattr(self.tts_engine, "is_voice_downloaded", None)
+                if callable(is_dl) and is_dl(voice_id):
+                    return True
+                # Show progress dialog for Piper voice
+                from PySide6.QtWidgets import QProgressDialog
+                from PySide6.QtCore import Qt as QtCore
+
+                dlg = QProgressDialog(f"Загрузка голоса {voice_id}...", "Отмена", 0, 100, self)
+                dlg.setWindowTitle("Загрузка голоса Piper")
+                dlg.setWindowModality(QtCore.WindowModality.WindowModal)
+                dlg.setAutoClose(False)
+                dlg.setAutoReset(False)
+                dlg.setValue(0)
+                dlg.show()
+
+                ok = {"value": False, "cancelled": False}
+
+                def progress(p):
+                    # p is 0..1
+                    try:
+                        if dlg.wasCanceled():
+                            ok["cancelled"] = True
+                            return
+                        dlg.setValue(int(p * 100))
+                    except Exception:
+                        pass
+
+                # Run download in worker thread to keep UI responsive
+                import threading
+                result = {"success": False}
+
+                def do_download():
+                    try:
+                        result["success"] = bool(self.tts_engine.download_voice(voice_id, progress_callback=progress))
+                    except Exception:
+                        result["success"] = False
+
+                th = threading.Thread(target=do_download, daemon=True)
+                th.start()
+                # Pump events while downloading
+                while th.is_alive():
+                    QApplication.processEvents()
+                    time.sleep(0.05)
+                    if dlg.wasCanceled():
+                        break
+                dlg.close()
+                if result["success"] and not dlg.wasCanceled():
+                    self.status_bar.showMessage(f"Голос {voice_id} загружен")
+                    self._update_voice_status()
+                    return True
+                else:
+                    self.status_bar.showMessage("Загрузка отменена или не удалась")
+                    QMessageBox.warning(self, "Загрузка", f"Не удалось загрузить голос {voice_id}. Проверь интернет.")
+                    return False
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Ошибка загрузки голоса: {e}")
+                return False
+        elif engine_name == "supertonic":
+            try:
+                from tts.supertonic_wrapper import is_supertonic_downloaded, show_download_dialog_if_needed
+                if is_supertonic_downloaded():
+                    return True
+                from ui.download_dialog import show_download_dialog
+                return bool(show_download_dialog(self.tts_engine, self))
+            except Exception:
+                return True
+        return True
+
     def _save_settings(self):
         self.config.set("window_geometry", self.saveGeometry())
         self.config.save()
@@ -492,6 +649,9 @@ class MainWindow(QMainWindow):
     def _on_play(self):
         if not self._require_edge_consent_for_playback():
             return
+        vid = self.voice_combo.currentData()
+        if vid and not self._ensure_voice_downloaded(vid):
+            return
         if self.playback_manager.is_playing:
             self.playback_manager._stop_event.set()
             if self.tts_engine and hasattr(self.tts_engine, 'stop'):
@@ -528,6 +688,9 @@ class MainWindow(QMainWindow):
         if not self.tts_engine:
             return
         if not self._require_edge_consent_for_playback():
+            return
+        vid = self.voice_combo.currentData()
+        if vid and not self._ensure_voice_downloaded(vid):
             return
         if self.playback_manager.is_playing:
             self.playback_manager._stop_event.set()
@@ -582,6 +745,7 @@ class MainWindow(QMainWindow):
         if vid:
             self.config.voice = vid
             self.config.last_voice = vid
+        self._update_voice_status()
     
     def _on_theme_changed(self, i):
         self.config.theme = "dark" if i == 0 else "light"
@@ -685,6 +849,9 @@ class MainWindow(QMainWindow):
         if not self.tts_engine:
             return
         if not self._require_edge_consent_for_playback():
+            return
+        vid = self.voice_combo.currentData()
+        if vid and not self._ensure_voice_downloaded(vid):
             return
         text = self.text_edit.toPlainText()
         if not text.strip():
