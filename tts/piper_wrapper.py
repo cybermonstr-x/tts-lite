@@ -1,13 +1,16 @@
 """Piper TTS engine wrapper (offline, models from Hugging Face over HTTPS)."""
+
 import hashlib
 import os
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import List, Generator, Tuple
+
 import numpy as np
 
-from .engine import TTSEngine, VoiceInfo
 from utils.logger import get_logger, preview_text
+
+from .engine import TTSEngine, VoiceInfo
 
 logger = get_logger(__name__)
 
@@ -27,23 +30,23 @@ AVAILABLE_VOICES = {
         "language": "ru",
         "gender": "female",
         "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx",
-        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx.json",
+        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/irina/medium/ru_RU-irina-medium.onnx.json",  # noqa: E501
         "sha256": None,
     },
     "ru_RU-ruslan-medium": {
         "name": "Руслан (русский, мужской)",
         "language": "ru",
         "gender": "male",
-        "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium.onnx",
-        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium.onnx.json",
+        "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium.onnx",  # noqa: E501
+        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/ru/ru_RU/ruslan/medium/ru_RU-ruslan-medium.onnx.json",  # noqa: E501
         "sha256": None,
     },
     "en_US-lessac-medium": {
         "name": "Lessac (English, male)",
         "language": "en",
         "gender": "male",
-        "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",
-        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",
+        "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx",  # noqa: E501
+        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",  # noqa: E501
         "sha256": None,
     },
     "en_US-amy-medium": {
@@ -51,7 +54,7 @@ AVAILABLE_VOICES = {
         "language": "en",
         "gender": "female",
         "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx",
-        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json",
+        "config_url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json",  # noqa: E501
         "sha256": None,
     },
 }
@@ -112,6 +115,7 @@ class PiperEngine(TTSEngine):
         """Initialize Piper TTS engine."""
         try:
             import piper  # noqa: F401
+
             self._ensure_voices_dir()
             self._initialized = True
             return True
@@ -119,16 +123,18 @@ class PiperEngine(TTSEngine):
             logger.error("piper-tts not installed. Run: pip install piper-tts")
             return False
 
-    def get_voices(self) -> List[VoiceInfo]:
+    def get_voices(self) -> list[VoiceInfo]:
         """Get list of available voices."""
         voices = []
         for voice_id, info in AVAILABLE_VOICES.items():
-            voices.append(VoiceInfo(
-                id=voice_id,
-                name=info["name"],
-                language=info["language"],
-                gender=info["gender"]
-            ))
+            voices.append(
+                VoiceInfo(
+                    id=voice_id,
+                    name=info["name"],
+                    language=info["language"],
+                    gender=info["gender"],
+                )
+            )
         return voices
 
     def _get_voice_path(self, voice_id: str) -> Path:
@@ -160,8 +166,9 @@ class PiperEngine(TTSEngine):
         tmp_path = Path(tmp_name)
         try:
             # verify=True is the requests default; stated explicitly for the audit.
-            with requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT,
-                              verify=True) as response:
+            with requests.get(
+                url, stream=True, timeout=DOWNLOAD_TIMEOUT, verify=True
+            ) as response:
                 response.raise_for_status()
                 total_size = int(response.headers.get("content-length", 0))
                 downloaded = 0
@@ -208,9 +215,7 @@ class PiperEngine(TTSEngine):
             model_path = self._get_voice_path(voice_id)
             logger.info("Downloading voice model: %s", voice_id)
 
-            self._download_url_to_file(
-                voice_info["url"], model_path, progress_callback
-            )
+            self._download_url_to_file(voice_info["url"], model_path, progress_callback)
 
             config_path = self._get_config_path(voice_id)
             self._download_url_to_file(voice_info["config_url"], config_path)
@@ -257,8 +262,9 @@ class PiperEngine(TTSEngine):
         except Exception as e:
             raise RuntimeError(f"Failed to load Piper model: {e}") from e
 
-    def synthesize(self, text: str, voice_id: str, speed: float = 1.0,
-                   pitch: float = 1.0) -> Tuple[np.ndarray, int]:
+    def synthesize(
+        self, text: str, voice_id: str, speed: float = 1.0, pitch: float = 1.0
+    ) -> tuple[np.ndarray, int]:
         """Synthesize text to audio."""
         from utils.security import validate_synthesis_text
 
@@ -289,13 +295,15 @@ class PiperEngine(TTSEngine):
         # Adjust speed by resampling
         if speed != 1.0:
             import scipy.signal
+
             new_length = int(len(audio) / speed)
             audio = scipy.signal.resample(audio, new_length).astype(np.float32)
 
         return audio, sample_rate
 
-    def synthesize_streaming(self, text: str, voice_id: str, speed: float = 1.0,
-                             pitch: float = 1.0) -> Generator[Tuple[np.ndarray, int], None, None]:
+    def synthesize_streaming(
+        self, text: str, voice_id: str, speed: float = 1.0, pitch: float = 1.0
+    ) -> Generator[tuple[np.ndarray, int], None, None]:
         """Synthesize text to audio with streaming."""
         from utils.security import validate_synthesis_text
 
@@ -320,6 +328,7 @@ class PiperEngine(TTSEngine):
             # Adjust speed
             if speed != 1.0:
                 import scipy.signal
+
                 new_length = int(len(audio) / speed)
                 audio = scipy.signal.resample(audio, new_length).astype(np.float32)
 
@@ -329,6 +338,7 @@ class PiperEngine(TTSEngine):
         """Check if Piper is available."""
         try:
             import piper  # noqa: F401
+
             return True
         except ImportError:
             return False

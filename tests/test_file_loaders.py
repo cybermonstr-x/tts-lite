@@ -1,14 +1,16 @@
 """Tests for file loaders (.txt/.rtf/.md) with fixtures and security checks."""
-import pytest
+
 from pathlib import Path
 
+import pytest
+
 from utils.file_loaders import (
-    load_text_file,
-    load_rtf_file,
-    load_markdown_file,
-    load_file,
-    get_supported_extensions,
     get_file_filter,
+    get_supported_extensions,
+    load_file,
+    load_markdown_file,
+    load_rtf_file,
+    load_text_file,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -44,6 +46,7 @@ class TestRtfLoader:
 
     def test_missing_striprtf(self, tmp_path, monkeypatch):
         import sys
+
         monkeypatch.setitem(sys.modules, "striprtf", None)
         monkeypatch.setitem(sys.modules, "striprtf.striprtf", None)
         p = tmp_path / "a.rtf"
@@ -90,6 +93,7 @@ class TestLoadFileDispatch:
     def test_path_traversal_name_rejected_by_size_check(self, tmp_path):
         # limit check: oversized file must be refused
         from utils import security
+
         p = tmp_path / "big.txt"
         p.write_bytes(b"x" * (security.MAX_TEXT_FILE_SIZE + 1))
         with pytest.raises(ValueError, match="too large"):

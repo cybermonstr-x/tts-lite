@@ -1,7 +1,9 @@
 """UI tests for MainWindow: engine/voice selection, playback controls, theme/language."""
-import pytest
+
+from unittest.mock import Mock
+
 import numpy as np
-from unittest.mock import Mock, patch
+import pytest
 
 pytestmark = pytest.mark.ui
 
@@ -24,14 +26,17 @@ def _mock_config(**overrides):
     cfg.save = Mock()
     cfg.config_file_path.return_value = ""
     cfg.validate.return_value = True
+
     def _set_edge(v):
         cfg.edge_consent = "accepted" if v else "declined"
+
     cfg.set_edge_consent.side_effect = _set_edge
     return cfg
 
 
 def _fake_engine():
     from tts.engine import VoiceInfo
+
     eng = Mock()
     eng.get_voices.return_value = [
         VoiceInfo(id="v1", name="Voice 1", language="ru", gender="male"),
@@ -40,7 +45,9 @@ def _fake_engine():
     eng.initialize.return_value = True
     eng.is_available.return_value = True
     eng.synthesize.return_value = (np.zeros(10, dtype=np.float32), 22050)
-    eng.synthesize_streaming.return_value = iter([(np.zeros(10, dtype=np.float32), 22050)])
+    eng.synthesize_streaming.return_value = iter(
+        [(np.zeros(10, dtype=np.float32), 22050)]
+    )
     eng.stop_event = None
     eng.stop = Mock()
     return eng
@@ -49,22 +56,30 @@ def _fake_engine():
 @pytest.fixture()
 def window(qtbot, monkeypatch):
     cfg = _mock_config()
-    from utils.translations import Translations
     from ui.main_window import MainWindow
+    from utils.translations import Translations
 
     fake_eng = _fake_engine()
     monkeypatch.setattr("tts.engine.create_engine", lambda n="auto": fake_eng)
-    monkeypatch.setattr("tts.engine.get_available_engines", lambda: ["piper", "edge_tts", "supertonic"])
+    monkeypatch.setattr(
+        "tts.engine.get_available_engines", lambda: ["piper", "edge_tts", "supertonic"]
+    )
     monkeypatch.setattr("ui.main_window.apply_theme", lambda app, t: None)
 
     # Mock PlaybackManager / AudioExporter to avoid real audio threads
-    import audio.playback as pb_mod
     import audio.export as ex_mod
+    import audio.playback as pb_mod
 
     fake_pm = Mock()
     fake_pm.is_playing = False
-    for sig in ("playback_started", "playback_stopped", "playback_finished",
-                "position_changed", "progress_updated", "error_occurred"):
+    for sig in (
+        "playback_started",
+        "playback_stopped",
+        "playback_finished",
+        "position_changed",
+        "progress_updated",
+        "error_occurred",
+    ):
         m = Mock()
         m.connect = Mock()
         setattr(fake_pm, sig, m)
@@ -72,8 +87,13 @@ def window(qtbot, monkeypatch):
     fake_pm.stop = Mock()
 
     fake_exp = Mock()
-    for sig in ("export_started", "export_progress", "export_progress_text",
-                "export_complete", "export_error"):
+    for sig in (
+        "export_started",
+        "export_progress",
+        "export_progress_text",
+        "export_complete",
+        "export_error",
+    ):
         m = Mock()
         m.connect = Mock()
         setattr(fake_exp, sig, m)
@@ -81,6 +101,7 @@ def window(qtbot, monkeypatch):
     monkeypatch.setattr(pb_mod, "PlaybackManager", lambda eng, parent=None: fake_pm)
     monkeypatch.setattr(ex_mod, "AudioExporter", lambda eng, parent=None: fake_exp)
     import ui.main_window as mw_mod
+
     monkeypatch.setattr(mw_mod, "PlaybackManager", lambda eng, parent=None: fake_pm)
     monkeypatch.setattr(mw_mod, "AudioExporter", lambda eng, parent=None: fake_exp)
 
@@ -116,7 +137,9 @@ class TestMainWindowCreation:
 
     def test_theme_switch(self, window, monkeypatch):
         called = {}
-        monkeypatch.setattr("ui.main_window.apply_theme", lambda app, t: called.__setitem__("theme", t))
+        monkeypatch.setattr(
+            "ui.main_window.apply_theme", lambda app, t: called.__setitem__("theme", t)
+        )
         window.theme_combo.setCurrentIndex(1)
         assert window.config.theme == "light"
         assert called.get("theme") == "light"
@@ -125,15 +148,20 @@ class TestMainWindowCreation:
 class TestLanguageSwitch:
     def test_cancel_keeps_old(self, window, monkeypatch):
         from PySide6.QtWidgets import QMessageBox
-        monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No)
+
+        monkeypatch.setattr(
+            QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.No
+        )
         old = window.config.language
         window.lang_combo.setCurrentIndex(1 if old == "ru" else 0)
         assert window.config.language == old
 
     def test_accept_saves(self, window, monkeypatch):
-        from PySide6.QtWidgets import QMessageBox
-        from PySide6.QtWidgets import QApplication
-        monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+        from PySide6.QtWidgets import QApplication, QMessageBox
+
+        monkeypatch.setattr(
+            QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes
+        )
         monkeypatch.setattr("ui.main_window.subprocess.Popen", Mock())
         monkeypatch.setattr(QApplication, "quit", Mock())
         old = window.config.language
@@ -145,6 +173,7 @@ class TestLanguageSwitch:
 class TestPlaybackActions:
     def test_play_empty_warns(self, window, monkeypatch):
         from PySide6.QtWidgets import QMessageBox
+
         monkeypatch.setattr(QMessageBox, "warning", Mock())
         window.text_edit.setPlainText("   ")
         window._on_play()
@@ -152,6 +181,7 @@ class TestPlaybackActions:
 
     def test_preview_no_selection_warns(self, window, monkeypatch):
         from PySide6.QtWidgets import QMessageBox
+
         monkeypatch.setattr(QMessageBox, "warning", Mock())
         window.text_edit.setPlainText("Hello world")
         cursor = window.text_edit.textCursor()
@@ -162,8 +192,14 @@ class TestPlaybackActions:
 
     def test_edge_consent_blocks(self, window, monkeypatch):
         # Patch consent check BEFORE triggering engine combo signal
-        monkeypatch.setattr("tts.edge_tts_wrapper.check_edge_consent", lambda cfg, parent=None: False)
-        monkeypatch.setattr("ui.main_window.check_edge_consent", lambda cfg, parent=None: False, raising=False)
+        monkeypatch.setattr(
+            "tts.edge_tts_wrapper.check_edge_consent", lambda cfg, parent=None: False
+        )
+        monkeypatch.setattr(
+            "ui.main_window.check_edge_consent",
+            lambda cfg, parent=None: False,
+            raising=False,
+        )
         window.config.edge_consent = "unknown"
         idx = -1
         for i in range(window.engine_combo.count()):
@@ -193,6 +229,7 @@ class TestPlaybackActions:
 class TestExportAction:
     def test_export_empty_warns(self, window, monkeypatch):
         from PySide6.QtWidgets import QMessageBox
+
         monkeypatch.setattr(QMessageBox, "warning", Mock())
         window.text_edit.setPlainText("  ")
         window._on_export()
@@ -200,6 +237,7 @@ class TestExportAction:
 
     def test_save_as_no_temp(self, window, monkeypatch):
         from PySide6.QtWidgets import QMessageBox
+
         monkeypatch.setattr(QMessageBox, "information", Mock())
         window._temp_audio_path = None
         window._on_save_as()

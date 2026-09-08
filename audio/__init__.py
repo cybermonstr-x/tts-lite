@@ -1,5 +1,6 @@
 """Audio package."""
-from .playback import PlaybackManager
-from .export import AudioExporter
 
-__all__ = ['PlaybackManager', 'AudioExporter']
+from .export import AudioExporter
+from .playback import PlaybackManager
+
+__all__ = ["AudioExporter", "PlaybackManager"]

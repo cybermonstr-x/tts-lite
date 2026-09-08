@@ -3,6 +3,7 @@
 All user-controlled paths and texts must go through these helpers before
 use in file/network/audio operations.
 """
+
 import os
 import re
 from pathlib import Path
@@ -17,9 +18,8 @@ _ALLOWED_TEXT_EXTENSIONS = {".txt", ".rtf", ".md", ".markdown"}
 
 # Directories that must never be used as export targets.
 _BLOCKED_EXPORT_DIRS = {
-    Path(p) for p in (
-        os.environ.get("SystemRoot", r"C:\Windows") if os.name == "nt" else "/",
-    )
+    Path(p)
+    for p in (os.environ.get("SystemRoot", r"C:\Windows") if os.name == "nt" else "/",)
 }
 _SYSTEM_DIRS_NT = (
     os.environ.get("SystemRoot", r"C:\Windows").lower(),
@@ -33,7 +33,11 @@ def preview_text(text: str, max_chars: int = 10) -> str:
     if not text:
         return "<empty>"
     preview = text[:max_chars].replace("\n", " ").replace("\r", " ")
-    return f"'{preview}...' ({len(text)} chars)" if len(text) > max_chars else f"'{preview}'"
+    return (
+        f"'{preview}...' ({len(text)} chars)"
+        if len(text) > max_chars
+        else f"'{preview}'"
+    )
 
 
 def sanitize_filename(name: str, max_len: int = 80) -> str:
@@ -46,7 +50,7 @@ def sanitize_filename(name: str, max_len: int = 80) -> str:
         return "tts"
     # Drop any directory components first (defence against '../' input).
     # Handle both Unix and Windows path separators on all platforms.
-    name = name.replace('\\', '/').split('/')[-1]
+    name = name.replace("\\", "/").split("/")[-1]
     # Replace reserved/special chars with underscore.
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
     name = name.replace("..", "_")
@@ -72,9 +76,7 @@ def validate_input_path(filepath: str | os.PathLike) -> Path:
     except OSError as e:
         raise ValueError(f"Cannot access file: {e}")
     if size > MAX_TEXT_FILE_SIZE:
-        raise ValueError(
-            f"File too large ({size} bytes, max {MAX_TEXT_FILE_SIZE})"
-        )
+        raise ValueError(f"File too large ({size} bytes, max {MAX_TEXT_FILE_SIZE})")
     return path
 
 

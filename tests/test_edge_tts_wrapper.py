@@ -1,14 +1,12 @@
 """Tests for Edge TTS wrapper: requests, chunking, consent, streaming (mocked)."""
-import json
-import sys
-import types
-import pytest
+
 import numpy as np
+import pytest
 
 from tts.edge_tts_wrapper import (
+    _WORKER_SCRIPT,
     EdgeTTSEngine,
     check_edge_consent,
-    _WORKER_SCRIPT,
 )
 
 
@@ -86,9 +84,8 @@ class TestConsent:
         assert check_edge_consent(FakeConfig("unknown"), parent=None) is False
 
     def test_dialog_accept(self, monkeypatch):
-        from PySide6.QtWidgets import QMessageBox
         import PySide6.QtWidgets as qw
-        import tts.edge_tts_wrapper as mod
+        from PySide6.QtWidgets import QMessageBox
 
         class FakeBox:
             StandardButton = QMessageBox.StandardButton

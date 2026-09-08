@@ -9,6 +9,7 @@ QSettings picks the native backend automatically, so no format-specific
 code is needed. On POSIX the underlying INI file is additionally
 restricted to owner-only access (chmod 600) after first sync.
 """
+
 import sys
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,6 @@ APPLICATION = "TTSLite"
 
 class ConfigError(Exception):
     """Custom exception for configuration errors."""
-    pass
 
 
 class Config:
@@ -57,7 +57,9 @@ class Config:
     VALID_FORMATS = {"mp3", "wav"}
     VALID_ENGINES = {"auto", "edge_tts", "piper", "supertonic", "pyttsx3"}
 
-    def __init__(self, organization: str = ORGANIZATION, application: str = APPLICATION):
+    def __init__(
+        self, organization: str = ORGANIZATION, application: str = APPLICATION
+    ):
         try:
             # Variant V: default QSettings scope/format — native per-OS backend.
             self.settings = QSettings(organization, application)

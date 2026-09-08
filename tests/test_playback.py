@@ -1,8 +1,10 @@
 """Tests for PlaybackManager (fake engine/worker) and PlaybackWorker cleanup."""
+
 import queue
 import threading
-import pytest
+
 import numpy as np
+import pytest
 
 
 class FakeEngine:
@@ -47,8 +49,10 @@ class _Sig:
 @pytest.fixture()
 def manager(monkeypatch):
     import audio.playback as pb
+
     monkeypatch.setattr(pb, "PlaybackWorker", FakeWorker)
     from audio.playback import PlaybackManager
+
     return PlaybackManager(FakeEngine())
 
 

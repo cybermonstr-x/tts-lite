@@ -99,6 +99,7 @@ mypy tts_lite/
 
 ```python
 """Module docstring."""
+
 from typing import Optional, List
 import logging
 
@@ -109,11 +110,11 @@ logger = get_logger(__name__)
 
 class ExampleClass:
     """Example class demonstrating code style."""
-    
+
     def __init__(self, name: str, value: int = 0):
         """
         Initialize ExampleClass.
-        
+
         Args:
             name: The name of the instance
             value: Initial value (default: 0)
@@ -121,21 +122,21 @@ class ExampleClass:
         self.name = name
         self.value = value
         logger.debug(f"Initialized {name} with value {value}")
-    
+
     def process(self, data: List[str]) -> Optional[str]:
         """
         Process input data.
-        
+
         Args:
             data: List of strings to process
-            
+
         Returns:
             Processed result or None if failed
         """
         if not data:
             logger.warning("No data provided")
             return None
-        
+
         return " ".join(data)
 ```
 
@@ -171,6 +172,7 @@ Example test:
 
 ```python
 """Tests for configuration module."""
+
 import pytest
 from utils.config import Config, ConfigError
 
@@ -178,7 +180,7 @@ from utils.config import Config, ConfigError
 def test_config_default_values():
     """Test that config has correct default values."""
     config = Config()
-    
+
     assert config.theme == "dark"
     assert config.language == "ru"
     assert config.volume == 80
@@ -189,20 +191,20 @@ def test_config_validation_invalid_theme():
     """Test validation fails for invalid theme."""
     config = Config()
     config.set("theme", "invalid")
-    
+
     assert not config.validate()
 
 
 def test_config_set_volume():
     """Test volume setting with bounds checking."""
     config = Config()
-    
+
     config.volume = 50
     assert config.volume == 50
-    
+
     config.volume = -10  # Should clamp to 0
     assert config.volume == 0
-    
+
     config.volume = 150  # Should clamp to 100
     assert config.volume == 100
 ```

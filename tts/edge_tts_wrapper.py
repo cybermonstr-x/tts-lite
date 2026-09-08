@@ -8,6 +8,7 @@ Security: user text/voice are never embedded into generated code and never
 passed through a shell. Synthesis parameters travel to the worker
 subprocess via a JSON job file; the worker script itself is static.
 """
+
 import json
 import os
 import subprocess
@@ -15,10 +16,13 @@ import sys
 import tempfile
 import threading
 import wave
-from typing import List, Generator, Tuple
+from collections.abc import Generator
+
 import numpy as np
-from .engine import TTSEngine, VoiceInfo
+
 from utils.logger import get_logger, preview_text
+
+from .engine import TTSEngine, VoiceInfo
 
 logger = get_logger(__name__)
 
@@ -129,9 +133,12 @@ def check_edge_consent(config, parent=None) -> bool:
         return False
     try:
         from PySide6.QtWidgets import QMessageBox
+
         lang = getattr(config, "language", "ru")
         msg = EDGE_CONSENT_MESSAGE if lang == "ru" else EDGE_CONSENT_MESSAGE_EN
-        title = "Edge TTS — передача данных" if lang == "ru" else "Edge TTS — data transfer"
+        title = (
+            "Edge TTS — передача данных" if lang == "ru" else "Edge TTS — data transfer"
+        )
         box = QMessageBox(parent)
         box.setIcon(QMessageBox.Icon.Warning)
         box.setWindowTitle(title)
@@ -163,22 +170,43 @@ class EdgeTTSEngine(TTSEngine):
         """Initialize Edge TTS engine."""
         try:
             import edge_tts  # noqa: F401
+
             self._initialized = True
             return True
         except ImportError:
             logger.error("edge-tts not installed. Run: pip install edge-tts")
             return False
 
-    def get_voices(self) -> List[VoiceInfo]:
+    def get_voices(self) -> list[VoiceInfo]:
         """Get list of available voices."""
         if not self._initialized:
             return []
 
         return [
-            VoiceInfo(id="ru-RU-DmitryNeural", name="Dmitry (Russian, male)", language="ru", gender="male"),
-            VoiceInfo(id="ru-RU-SvetlanaNeural", name="Svetlana (Russian, female)", language="ru", gender="female"),
-            VoiceInfo(id="en-US-BrianNeural", name="Brian (English, male)", language="en", gender="male"),
-            VoiceInfo(id="en-US-EmmaNeural", name="Emma (English, female)", language="en", gender="female"),
+            VoiceInfo(
+                id="ru-RU-DmitryNeural",
+                name="Dmitry (Russian, male)",
+                language="ru",
+                gender="male",
+            ),
+            VoiceInfo(
+                id="ru-RU-SvetlanaNeural",
+                name="Svetlana (Russian, female)",
+                language="ru",
+                gender="female",
+            ),
+            VoiceInfo(
+                id="en-US-BrianNeural",
+                name="Brian (English, male)",
+                language="en",
+                gender="male",
+            ),
+            VoiceInfo(
+                id="en-US-EmmaNeural",
+                name="Emma (English, female)",
+                language="en",
+                gender="female",
+            ),
         ]
 
     def _validate_request(self, text: str, voice_id: str) -> str:
@@ -192,25 +220,38 @@ class EdgeTTSEngine(TTSEngine):
             raise RuntimeError(f"Unknown Edge voice: {voice_id}")
         return text
 
-    def _mp3_to_numpy(self, mp3_path: str) -> Tuple[np.ndarray, int]:
+    def _mp3_to_numpy(self, mp3_path: str) -> tuple[np.ndarray, int]:
         """Convert MP3 to numpy array using ffmpeg."""
         wav_path = mp3_path + ".wav" if mp3_path.endswith(".mp3") else mp3_path + ".wav"
         try:
             try:
                 import imageio_ffmpeg
+
                 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
             except ImportError:
                 ffmpeg_path = "ffmpeg"
 
             subprocess.run(
-                [ffmpeg_path, '-y', '-i', mp3_path, '-ar', '22050', '-ac', '1', wav_path],
+                [
+                    ffmpeg_path,
+                    "-y",
+                    "-i",
+                    mp3_path,
+                    "-ar",
+                    "22050",
+                    "-ac",
+                    "1",
+                    wav_path,
+                ],
                 **_get_subprocess_kwargs(),
-                check=True
+                check=True,
             )
 
-            with wave.open(wav_path, 'rb') as wf:
+            with wave.open(wav_path, "rb") as wf:
                 frames = wf.readframes(wf.getnframes())
-                audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+                audio = (
+                    np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+                )
                 sample_rate = wf.getframerate()
 
             return audio, sample_rate
@@ -232,6 +273,7 @@ class EdgeTTSEngine(TTSEngine):
         a second GUI window. For frozen builds we run edge-tts in-process.
         """
         import asyncio
+
         import edge_tts
 
         if sys.platform == "win32":
@@ -248,6 +290,7 @@ class EdgeTTSEngine(TTSEngine):
             tmp_path = tmp.name
             tmp.close()
             try:
+
                 async def _do():
                     communicate = edge_tts.Communicate(text, voice_id, rate=rate)
                     await communicate.save(tmp_path)
@@ -267,6 +310,7 @@ class EdgeTTSEngine(TTSEngine):
                         pass
                 if attempt < max_retries - 1:
                     import time
+
                     time.sleep(1)
                     continue
                 raise RuntimeError("No audio generated after retries")
@@ -281,6 +325,7 @@ class EdgeTTSEngine(TTSEngine):
                 last_error = e
                 if attempt < max_retries - 1:
                     import time
+
                     time.sleep(1)
                     continue
                 raise RuntimeError(f"Edge TTS error: {e}") from e
@@ -300,12 +345,16 @@ class EdgeTTSEngine(TTSEngine):
             return self._synthesize_direct(text, voice_id, rate, max_retries)
 
         job_file = tempfile.NamedTemporaryFile(
-            suffix='.json', delete=False, mode='w', encoding='utf-8'
+            suffix=".json", delete=False, mode="w", encoding="utf-8"
         )
         try:
             json.dump(
-                {"text": text, "voice_id": voice_id, "rate": rate,
-                 "max_retries": max_retries},
+                {
+                    "text": text,
+                    "voice_id": voice_id,
+                    "rate": rate,
+                    "max_retries": max_retries,
+                },
                 job_file,
             )
             job_file.close()
@@ -315,7 +364,7 @@ class EdgeTTSEngine(TTSEngine):
             raise
 
         tmp_script = tempfile.NamedTemporaryFile(
-            suffix='.py', delete=False, mode='w', encoding='utf-8'
+            suffix=".py", delete=False, mode="w", encoding="utf-8"
         )
         tmp_script.write(_WORKER_SCRIPT)
         tmp_script.close()
@@ -325,7 +374,7 @@ class EdgeTTSEngine(TTSEngine):
             "stderr": subprocess.PIPE,
             "text": True,
         }
-        if sys.platform == 'win32':
+        if sys.platform == "win32":
             popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
 
         try:
@@ -353,17 +402,19 @@ class EdgeTTSEngine(TTSEngine):
             if stdout:
                 try:
                     info = json.loads(stdout.strip().splitlines()[-1])
-                    if 'error' in info:
+                    if "error" in info:
                         raise RuntimeError(f"Edge TTS error: {info['error']}")
-                    if 'path' in info:
-                        return info['path']
+                    if "path" in info:
+                        return info["path"]
                 except (json.JSONDecodeError, IndexError):
                     pass
 
             if proc.returncode != 0:
                 if self._stop_event and self._stop_event.is_set():
                     return None  # User pressed stop — process was killed
-                raise RuntimeError(f"Edge TTS subprocess failed (code {proc.returncode}): {stderr}")
+                raise RuntimeError(
+                    f"Edge TTS subprocess failed (code {proc.returncode}): {stderr}"
+                )
 
             raise RuntimeError("Edge TTS: No valid response from subprocess")
         finally:
@@ -385,8 +436,9 @@ class EdgeTTSEngine(TTSEngine):
             except Exception:
                 pass
 
-    def synthesize(self, text: str, voice_id: str, speed: float = 1.0,
-                   pitch: float = 1.0):
+    def synthesize(
+        self, text: str, voice_id: str, speed: float = 1.0, pitch: float = 1.0
+    ):
         """Synthesize text to audio. Splits long texts automatically."""
         if not self._initialized:
             raise RuntimeError("Engine not initialized")
@@ -450,10 +502,11 @@ class EdgeTTSEngine(TTSEngine):
                 return None  # User pressed stop — suppress error
             raise RuntimeError(f"Edge TTS synthesis failed: {e}") from e
 
-    def _split_text(self, text: str, max_len: int) -> List[str]:
+    def _split_text(self, text: str, max_len: int) -> list[str]:
         """Split text into chunks by sentence boundaries."""
         import re
-        sentences = re.split(r'(?<=[.!?])\s+', text)
+
+        sentences = re.split(r"(?<=[.!?])\s+", text)
         chunks = []
         current = ""
         for s in sentences:
@@ -465,7 +518,7 @@ class EdgeTTSEngine(TTSEngine):
                 if len(s) > max_len:
                     # Hard-split overlong sentence to guarantee progress.
                     for i in range(0, len(s), max_len):
-                        chunks.append(s[i:i + max_len])
+                        chunks.append(s[i : i + max_len])
                     current = ""
                 else:
                     current = s
@@ -473,8 +526,9 @@ class EdgeTTSEngine(TTSEngine):
             chunks.append(current)
         return chunks if chunks else [text]
 
-    def synthesize_streaming(self, text: str, voice_id: str, speed: float = 1.0,
-                             pitch: float = 1.0) -> Generator[Tuple[np.ndarray, int], None, None]:
+    def synthesize_streaming(
+        self, text: str, voice_id: str, speed: float = 1.0, pitch: float = 1.0
+    ) -> Generator[tuple[np.ndarray, int], None, None]:
         """Synthesize text to audio with streaming (via subprocess)."""
         result = self.synthesize(text, voice_id, speed, pitch)
         if result is None:
@@ -483,12 +537,13 @@ class EdgeTTSEngine(TTSEngine):
 
         chunk_size = 4096
         for i in range(0, len(audio), chunk_size):
-            yield audio[i:i+chunk_size], sample_rate
+            yield audio[i : i + chunk_size], sample_rate
 
     def is_available(self) -> bool:
         """Check if Edge TTS is available."""
         try:
             import edge_tts  # noqa: F401
+
             return True
         except ImportError:
             return False

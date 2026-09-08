@@ -1,8 +1,10 @@
 """Tests for Supertonic wrapper (mocked TTS backend)."""
+
 import io
 import wave
-import pytest
+
 import numpy as np
+import pytest
 
 from tts.supertonic_wrapper import SupertonicEngine, is_supertonic_downloaded
 
@@ -37,12 +39,14 @@ class TestVoices:
 
     def test_is_available_missing(self, monkeypatch):
         import sys
+
         monkeypatch.setitem(sys.modules, "supertonic", None)
         # module present but broken -> import returns None, attribute access fails
         eng = SupertonicEngine()
         eng._available = None
         # force ImportError path
         import builtins
+
         real_import = builtins.__import__
 
         def fake_import(name, *a, **k):

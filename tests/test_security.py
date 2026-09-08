@@ -1,4 +1,5 @@
 """Security tests: injections, traversal, filenames, export guards, log hygiene."""
+
 import numpy as np
 import pytest
 
@@ -43,15 +44,18 @@ class TestSynthesisTextValidation:
 
 
 class TestFilenameSanitizing:
-    @pytest.mark.parametrize("evil,expected_safe", [
-        ("../secret", "secret"),
-        ("..\\..\\win.ini", "win.ini"),
-        ("a/b\\c", "c"),
-        ('bad<>:"/\\|?*name', "___name"),
-        ("  ...  ", "_"),
-        ("", "tts"),
-        ("ok_name-2024", "ok_name-2024"),
-    ])
+    @pytest.mark.parametrize(
+        "evil,expected_safe",
+        [
+            ("../secret", "secret"),
+            ("..\\..\\win.ini", "win.ini"),
+            ("a/b\\c", "c"),
+            ('bad<>:"/\\|?*name', "___name"),
+            ("  ...  ", "_"),
+            ("", "tts"),
+            ("ok_name-2024", "ok_name-2024"),
+        ],
+    )
     def test_sanitize(self, evil, expected_safe):
         out = sanitize_filename(evil)
         assert out == expected_safe
@@ -77,8 +81,11 @@ class TestExportPathGuards:
 
     def test_system_dir_refused(self, tmp_path):
         import os
+
         if os.name == "nt":
-            target = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "tts_out.wav")
+            target = os.path.join(
+                os.environ.get("SystemRoot", r"C:\Windows"), "tts_out.wav"
+            )
         else:
             target = "/etc/tts_out.wav"
         with pytest.raises(ValueError, match="system directory"):
@@ -96,6 +103,7 @@ class TestInputPathGuards:
 class TestEnginesRejectInjections:
     def test_edge_unknown_voice(self):
         from tts.edge_tts_wrapper import EdgeTTSEngine
+
         eng = EdgeTTSEngine()
         eng._initialized = True
         with pytest.raises(RuntimeError):
@@ -103,6 +111,7 @@ class TestEnginesRejectInjections:
 
     def test_edge_empty_text(self):
         from tts.edge_tts_wrapper import EdgeTTSEngine
+
         eng = EdgeTTSEngine()
         eng._initialized = True
         with pytest.raises((RuntimeError, ValueError)):
@@ -110,6 +119,7 @@ class TestEnginesRejectInjections:
 
     def test_supertonic_unknown_voice(self):
         from tts.supertonic_wrapper import SupertonicEngine
+
         eng = SupertonicEngine()
         eng._tts = object()  # bypass init, validation happens first
         with pytest.raises(RuntimeError):
@@ -127,8 +137,9 @@ class TestEnginesRejectInjections:
                 return np.zeros(100, dtype=np.float32), 22050
 
         out = tmp_path / "out.wav"
-        worker = ExportWorker(FakeEngine(), ["   ", "Hello."], "v",
-                              str(out), "wav", 1.0, 1.0)
+        worker = ExportWorker(
+            FakeEngine(), ["   ", "Hello."], "v", str(out), "wav", 1.0, 1.0
+        )
         worker.run()  # synchronous
         assert out.exists()
         assert worker.tts_engine.calls == ["Hello."]
@@ -145,11 +156,13 @@ class TestLogHygiene:
     def test_config_never_logs_values(self, caplog):
         import logging
         from unittest.mock import Mock, patch
+
         with patch("utils.config.QSettings") as mock_qs:
             inst = Mock()
             inst.value.return_value = None
             mock_qs.return_value = inst
             from utils.config import Config
+
             with caplog.at_level(logging.DEBUG, logger="utils.config"):
                 cfg = Config()
                 cfg.set("voice", "SECRET_VOICE_VALUE")

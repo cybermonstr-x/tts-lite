@@ -1,4 +1,5 @@
 """Tests for Piper wrapper: download security, hashing, synthesis (mocked)."""
+
 import sys
 import types
 import pytest
@@ -46,14 +47,15 @@ class TestDownloadVoice:
         assert eng.download_voice("nope") is False
 
     def test_insecure_url_refused(self, tmp_path):
-        import tts.piper_wrapper as pw
+        import tts.piper_wrapper as pw  # noqa: F401
+
         eng = PiperEngine.__new__(PiperEngine)
         eng._voices_dir = tmp_path
         with pytest.raises(RuntimeError, match="insecure"):
             eng._download_url_to_file("http://evil/x.onnx", tmp_path / "x.onnx")
 
     def test_download_success_mocked(self, tmp_path, monkeypatch):
-        import tts.piper_wrapper as pw
+        import tts.piper_wrapper as pw  # noqa: F401
 
         eng = PiperEngine.__new__(PiperEngine)
         eng._voices_dir = tmp_path
@@ -75,7 +77,7 @@ class TestDownloadVoice:
 
         fake_requests = types.SimpleNamespace(get=lambda *a, **k: FakeResp())
         # config download returns small JSON body via non-stream path
-        orig_get = fake_requests.get
+        orig_get = fake_requests.get  # noqa: F841
 
         class FakeResp2(FakeResp):
             def __init__(self, body: bytes):
@@ -117,7 +119,7 @@ class TestSynthesizeMocked:
         import tts.piper_wrapper as pw
 
         class FakeChunk:
-            audio_int16_array = (np.ones(100, dtype=np.int16) * 1000)
+            audio_int16_array = np.ones(100, dtype=np.int16) * 1000
 
         class FakeModel:
             config = types.SimpleNamespace(sample_rate=22050)
@@ -127,9 +129,7 @@ class TestSynthesizeMocked:
                 yield FakeChunk()
 
         fake_piper = types.SimpleNamespace(
-            PiperVoice=types.SimpleNamespace(
-                load=lambda m, c: FakeModel()
-            )
+            PiperVoice=types.SimpleNamespace(load=lambda m, c: FakeModel())
         )
         monkeypatch.setitem(sys.modules, "piper", fake_piper)
         monkeypatch.setattr(pw.PiperEngine, "is_voice_downloaded", lambda self, v: True)

@@ -1,4 +1,5 @@
 """File loaders for text files (.txt, .rtf, .md)."""
+
 import re
 from pathlib import Path
 
@@ -13,7 +14,9 @@ def _read_text_with_fallback(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
-        logger.warning("File %s is not valid UTF-8, trying fallback encodings", path.name)
+        logger.warning(
+            "File %s is not valid UTF-8, trying fallback encodings", path.name
+        )
         for enc in ("cp1251", "latin-1"):
             try:
                 return path.read_text(encoding=enc)
@@ -35,7 +38,9 @@ def load_rtf_file(filepath):
     try:
         from striprtf.striprtf import rtf_to_text
     except ImportError:
-        raise ImportError("striprtf library is required to load RTF files. Install with: pip install striprtf")
+        raise ImportError(
+            "striprtf library is required to load RTF files. Install with: pip install striprtf"
+        )
     path = validate_input_path(filepath)
     if path.suffix.lower() != ".rtf":
         raise ValueError(f"Expected .rtf file, got: {path.suffix!r}")
@@ -54,23 +59,23 @@ def load_markdown_file(filepath):
 
     # Simple markdown to plain text conversion
     # Remove headers
-    content = re.sub(r'^#{1,6}\s+', '', content, flags=re.MULTILINE)
+    content = re.sub(r"^#{1,6}\s+", "", content, flags=re.MULTILINE)
     # Remove bold/italic markers
-    content = re.sub(r'\*{1,3}(.+?)\*{1,3}', r'\1', content)
-    content = re.sub(r'_{1,3}(.+?)_{1,3}', r'\1', content)
+    content = re.sub(r"\*{1,3}(.+?)\*{1,3}", r"\1", content)
+    content = re.sub(r"_{1,3}(.+?)_{1,3}", r"\1", content)
     # Remove links but keep text
-    content = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', content)
+    content = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", content)
     # Remove images
-    content = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', '', content)
+    content = re.sub(r"!\[([^\]]*)\]\([^\)]+\)", "", content)
     # Remove code blocks
-    content = re.sub(r'```[\s\S]*?```', '', content)
-    content = re.sub(r'`(.+?)`', r'\1', content)
+    content = re.sub(r"```[\s\S]*?```", "", content)
+    content = re.sub(r"`(.+?)`", r"\1", content)
     # Remove blockquotes
-    content = re.sub(r'^>\s+', '', content, flags=re.MULTILINE)
+    content = re.sub(r"^>\s+", "", content, flags=re.MULTILINE)
     # Remove horizontal rules
-    content = re.sub(r'^[-*_]{3,}\s*$', '', content, flags=re.MULTILINE)
+    content = re.sub(r"^[-*_]{3,}\s*$", "", content, flags=re.MULTILINE)
     # Remove extra whitespace
-    content = re.sub(r'\n{3,}', '\n\n', content)
+    content = re.sub(r"\n{3,}", "\n\n", content)
 
     return content.strip()
 
@@ -80,11 +85,11 @@ def load_file(filepath):
     path = Path(filepath)
     extension = path.suffix.lower()
 
-    if extension == '.txt':
+    if extension == ".txt":
         return load_text_file(filepath)
-    elif extension == '.rtf':
+    elif extension == ".rtf":
         return load_rtf_file(filepath)
-    elif extension in ['.md', '.markdown']:
+    elif extension in [".md", ".markdown"]:
         return load_markdown_file(filepath)
     else:
         raise ValueError(
@@ -95,7 +100,7 @@ def load_file(filepath):
 
 def get_supported_extensions():
     """Return list of supported file extensions."""
-    return ['.txt', '.rtf', '.md', '.markdown']
+    return [".txt", ".rtf", ".md", ".markdown"]
 
 
 def get_file_filter():

@@ -1,4 +1,5 @@
 """Shared pytest fixtures: project root on sys.path, offscreen Qt."""
+
 import os
 import sys
 from pathlib import Path

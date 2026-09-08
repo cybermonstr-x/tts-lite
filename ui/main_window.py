@@ -1,35 +1,54 @@
 """Main application window."""
+
 import os
-import sys
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
-from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QPlainTextEdit, QPushButton, QLabel, QComboBox, QSlider,
-    QProgressBar, QGroupBox, QMenuBar, QMenu, QStatusBar,
-    QFileDialog, QMessageBox, QApplication, QScrollArea
-)
-from PySide6.QtCore import Qt, QTimer, QThread, Signal
-from PySide6.QtGui import QAction, QFont
 
-from utils.config import Config
-from utils.translations import Translations
-from utils.file_loaders import load_file, get_file_filter
-from utils.text_processing import split_into_sentences, get_text_statistics
-from tts.engine import create_engine
-from audio.playback import PlaybackManager
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QAction, QFont
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QSlider,
+    QSplitter,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
+
 from audio.export import AudioExporter
+from audio.playback import PlaybackManager
+from tts.engine import create_engine
 from ui.styles import apply_theme
+from utils.config import Config
+from utils.file_loaders import get_file_filter, load_file
+from utils.text_processing import get_text_statistics, split_into_sentences
+from utils.translations import Translations
 
 APP_VERSION = "1.0.5"
+
 
 def _get_music_folder():
     try:
         import winreg
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+        )
         music_dir = winreg.QueryValueEx(key, "My Music")[0]
         winreg.CloseKey(key)
         return music_dir
@@ -37,10 +56,11 @@ def _get_music_folder():
         pass
     return str(Path.home() / "Music")
 
+
 class MainWindow(QMainWindow):
     def __init__(self, config: Config, translations: Translations):
         super().__init__()
-        
+
         self.config = config
         self.translations = translations
         self.tts_engine = None
@@ -53,7 +73,7 @@ class MainWindow(QMainWindow):
         self._elapsed_seconds = 0
         self._export_start_time = 0.0
         self._current_file = None
-        
+
         self._init_ui()
         self._init_tts()
         self._init_playback()
@@ -61,60 +81,60 @@ class MainWindow(QMainWindow):
         self._load_default_text()
 
         apply_theme(QApplication.instance(), self.config.theme)
-    
+
     def _init_ui(self):
         t = self.translations
         self.setWindowTitle(t.t("app_title"))
         self.setMinimumSize(1200, 800)
-        
+
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
-        
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(splitter)
-        
+
         # Left panel
         left = QWidget()
         left.setMinimumWidth(400)
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         self.text_edit = QPlainTextEdit()
         self.text_edit.setPlaceholderText(t.t("placeholder_text"))
         self.text_edit.setFont(QFont("Consolas", 11))
         self.text_edit.textChanged.connect(self._update_stats)
         self.text_edit.selectionChanged.connect(self._update_preview_btn)
         left_layout.addWidget(self.text_edit)
-        
+
         self.stats_label = QLabel("")
         left_layout.addWidget(self.stats_label)
         self._update_stats()
-        
+
         splitter.addWidget(left)
-        
+
         # Right panel with scroll
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setMinimumWidth(350)
-        
+
         right = self._create_right_panel()
         scroll.setWidget(right)
         splitter.addWidget(scroll)
-        
+
         splitter.setSizes([500, 350])
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 2)
         splitter.setHandleWidth(6)
-        
+
         self._create_menu()
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage(t.t("ready"))
-    
+
     def _create_right_panel(self) -> QWidget:
         t = self.translations
         panel = QWidget()
@@ -122,7 +142,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(8)
-        
+
         # Engine
         g = QGroupBox(t.t("engine"))
         gl = QVBoxLayout(g)
@@ -132,7 +152,7 @@ class MainWindow(QMainWindow):
         self.engine_combo.currentIndexChanged.connect(self._on_engine_changed)
         gl.addWidget(self.engine_combo)
         layout.addWidget(g)
-        
+
         # Voice
         g = QGroupBox(t.t("voice"))
         gl = QVBoxLayout(g)
@@ -152,12 +172,12 @@ class MainWindow(QMainWindow):
         self.voice_download_btn.clicked.connect(self._on_download_voice)
         gl.addWidget(self.voice_download_btn)
         layout.addWidget(g)
-        
+
         # Audio
         g = QGroupBox(t.t("audio"))
         gl = QVBoxLayout(g)
         gl.setSpacing(4)
-        
+
         row = QHBoxLayout()
         row.addWidget(QLabel(t.t("volume") + ":"))
         self.vol_slider = QSlider(Qt.Orientation.Horizontal)
@@ -170,7 +190,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.vol_slider)
         row.addWidget(self.vol_label)
         gl.addLayout(row)
-        
+
         row = QHBoxLayout()
         row.addWidget(QLabel(t.t("speed") + ":"))
         self.spd_slider = QSlider(Qt.Orientation.Horizontal)
@@ -183,7 +203,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.spd_slider)
         row.addWidget(self.spd_label)
         gl.addLayout(row)
-        
+
         row = QHBoxLayout()
         row.addWidget(QLabel(t.t("pitch") + ":"))
         self.pitch_slider = QSlider(Qt.Orientation.Horizontal)
@@ -196,9 +216,9 @@ class MainWindow(QMainWindow):
         row.addWidget(self.pitch_slider)
         row.addWidget(self.pitch_label)
         gl.addLayout(row)
-        
+
         layout.addWidget(g)
-        
+
         # Playback
         g = QGroupBox(t.t("playback"))
         gl = QVBoxLayout(g)
@@ -222,7 +242,7 @@ class MainWindow(QMainWindow):
         self.preview_btn.clicked.connect(self._on_preview)
         gl.addWidget(self.preview_btn)
         layout.addWidget(g)
-        
+
         # Export
         g = QGroupBox(t.t("export"))
         gl = QVBoxLayout(g)
@@ -247,7 +267,7 @@ class MainWindow(QMainWindow):
         self.save_btn.clicked.connect(self._on_save_as)
         gl.addWidget(self.save_btn)
         layout.addWidget(g)
-        
+
         # Progress
         g = QGroupBox(t.t("progress"))
         gl = QVBoxLayout(g)
@@ -269,7 +289,7 @@ class MainWindow(QMainWindow):
         row.addWidget(self.total_label)
         gl.addLayout(row)
         layout.addWidget(g)
-        
+
         # Settings
         g = QGroupBox(t.t("settings"))
         gl = QVBoxLayout(g)
@@ -292,14 +312,14 @@ class MainWindow(QMainWindow):
         row.addWidget(self.lang_combo)
         gl.addLayout(row)
         layout.addWidget(g)
-        
+
         layout.addStretch()
         return panel
-    
+
     def _create_menu(self):
         t = self.translations
         mb = self.menuBar()
-        
+
         fm = mb.addMenu(t.t("file_menu"))
         a = QAction(t.t("open"), self)
         a.setShortcut("Ctrl+O")
@@ -313,7 +333,7 @@ class MainWindow(QMainWindow):
         a = QAction(t.t("exit"), self)
         a.triggered.connect(self.close)
         fm.addAction(a)
-        
+
         em = mb.addMenu(t.t("edit_menu"))
         a = QAction(t.t("undo"), self)
         a.setShortcut("Ctrl+Z")
@@ -341,17 +361,23 @@ class MainWindow(QMainWindow):
         a.setShortcut("Ctrl+A")
         a.triggered.connect(self.text_edit.selectAll)
         em.addAction(a)
-        
+
         hm = mb.addMenu(t.t("help"))
         a = QAction(t.t("about"), self)
         a.triggered.connect(self._on_about)
         hm.addAction(a)
-    
+
     def _init_tts(self):
         try:
             from tts.engine import get_available_engines
+
             engines = get_available_engines()
-            names = {"edge_tts": "Edge TTS (online)", "piper": "Piper TTS (offline)", "supertonic": "Supertonic 3 (offline)", "pyttsx3": "pyttsx3"}
+            names = {
+                "edge_tts": "Edge TTS (online)",
+                "piper": "Piper TTS (offline)",
+                "supertonic": "Supertonic 3 (offline)",
+                "pyttsx3": "pyttsx3",
+            }
             self.engine_combo.clear()
             for e in engines:
                 self.engine_combo.addItem(names.get(e, e), e)
@@ -360,13 +386,16 @@ class MainWindow(QMainWindow):
                 self._populate_voices()
         except Exception as e:
             self.status_bar.showMessage(f"TTS error: {e}")
-    
+
     def _ensure_edge_consent(self) -> bool:
         """Ensure Edge TTS cloud consent; disable Edge if declined."""
         from tts.edge_tts_wrapper import check_edge_consent
+
         if check_edge_consent(self.config, self):
             return True
-        self.status_bar.showMessage("Edge TTS отключён: нет согласия на передачу данных")
+        self.status_bar.showMessage(
+            "Edge TTS отключён: нет согласия на передачу данных"
+        )
         # Revert combo to a non-cloud engine if possible.
         for i in range(self.engine_combo.count()):
             if self.engine_combo.itemData(i) != "edge_tts":
@@ -386,16 +415,18 @@ class MainWindow(QMainWindow):
                 self.playback_manager.stop()
             self.tts_engine = create_engine(name)
             self.config.last_engine = name
-            
+
             # Show download dialog for Supertonic if needed
             if name == "supertonic":
                 from tts.supertonic_wrapper import is_supertonic_downloaded
+
                 if not is_supertonic_downloaded():
                     from ui.download_dialog import show_download_dialog
+
                     if not show_download_dialog(self.tts_engine, self):
                         self.status_bar.showMessage("Загрузка Supertonic отменена")
                         return
-            
+
             if self.tts_engine.initialize():
                 self._populate_voices()
                 if self.playback_manager:
@@ -404,7 +435,7 @@ class MainWindow(QMainWindow):
                     self.exporter.tts_engine = self.tts_engine
         except Exception as e:
             self.status_bar.showMessage(f"Engine error: {e}")
-    
+
     def _populate_voices(self):
         self.voice_combo.blockSignals(True)
         self.voice_combo.clear()
@@ -412,7 +443,9 @@ class MainWindow(QMainWindow):
             # Mark offline voices that need download
             suffix = ""
             try:
-                if self._current_engine_name() == "piper" and hasattr(self.tts_engine, "is_voice_downloaded"):
+                if self._current_engine_name() == "piper" and hasattr(
+                    self.tts_engine, "is_voice_downloaded"
+                ):
                     if not self.tts_engine.is_voice_downloaded(v.id):
                         suffix = "  ↓ скачать"
             except Exception:
@@ -425,7 +458,7 @@ class MainWindow(QMainWindow):
                 break
         self.voice_combo.blockSignals(False)
         self._update_voice_status()
-    
+
     def _init_playback(self):
         if not self.tts_engine:
             return
@@ -436,14 +469,14 @@ class MainWindow(QMainWindow):
         self.playback_manager.position_changed.connect(self._on_position)
         self.playback_manager.progress_updated.connect(self._on_playback_progress)
         self.playback_manager.error_occurred.connect(self._on_error)
-        
+
         self.exporter = AudioExporter(self.tts_engine)
         self.exporter.export_started.connect(self._on_export_started)
         self.exporter.export_progress.connect(self._on_export_progress)
         self.exporter.export_progress_text.connect(self._on_export_text)
         self.exporter.export_complete.connect(self._on_export_complete)
         self.exporter.export_error.connect(self._on_error)
-    
+
     def _load_settings(self):
         try:
             g = self.config.get("window_geometry")
@@ -461,7 +494,7 @@ class MainWindow(QMainWindow):
                     break
         except Exception:
             pass
-    
+
     def _load_default_text(self):
         """Load README.md into editor if empty (pet-project requirement #3)."""
         try:
@@ -472,7 +505,9 @@ class MainWindow(QMainWindow):
             if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
                 candidates.append(Path(sys._MEIPASS) / "README.md")
                 candidates.append(Path(sys.executable).parent / "README.md")
-                candidates.append(Path(sys.executable).parent / "_internal" / "README.md")
+                candidates.append(
+                    Path(sys.executable).parent / "_internal" / "README.md"
+                )
             candidates.append(Path(__file__).parent.parent / "README.md")
             for p in candidates:
                 if p.is_file():
@@ -485,7 +520,10 @@ class MainWindow(QMainWindow):
                     self._update_stats()
                     return
             # Fallback demo text if README not found
-            self.text_edit.setPlainText("Привет! Это TTS Lite. Вставь свой текст сюда и нажми Play.\n\nHello! This is TTS Lite. Paste your text here and press Play.")
+            self.text_edit.setPlainText(
+                "Привет! Это TTS Lite. Вставь свой текст сюда и нажми Play.\n\n"
+                "Hello! This is TTS Lite. Paste your text here and press Play."
+            )  # noqa: E501
             self._update_stats()
         except Exception:
             pass
@@ -500,7 +538,6 @@ class MainWindow(QMainWindow):
                 return
             if engine_name == "piper":
                 try:
-                    from tts.piper_wrapper import PiperEngine
                     # Use engine instance check if it has the method
                     is_dl = getattr(self.tts_engine, "is_voice_downloaded", None)
                     if callable(is_dl):
@@ -508,7 +545,9 @@ class MainWindow(QMainWindow):
                     else:
                         downloaded = False
                     if not downloaded:
-                        self.voice_status_label.setText("⚠ Голос не скачан — нажми «Скачать голос» (~50 МБ)")
+                        self.voice_status_label.setText(
+                            "⚠ Голос не скачан — нажми «Скачать голос» (~50 МБ)"
+                        )
                         self.voice_download_btn.setEnabled(True)
                         self.play_btn.setEnabled(False)
                         self.preview_btn.setEnabled(False)
@@ -519,8 +558,11 @@ class MainWindow(QMainWindow):
             elif engine_name == "supertonic":
                 try:
                     from tts.supertonic_wrapper import is_supertonic_downloaded
+
                     if not is_supertonic_downloaded():
-                        self.voice_status_label.setText("⚠ Модель Supertonic не скачана — загрузка ~400 МБ при выборе движка")
+                        self.voice_status_label.setText(
+                            "⚠ Модель Supertonic не скачана — загрузка ~400 МБ при выборе движка"
+                        )
                         self.voice_download_btn.setEnabled(False)
                         return
                 except Exception:
@@ -572,11 +614,13 @@ class MainWindow(QMainWindow):
 
                 class _Worker(QThread):
                     progressed = Signal(int)
+
                     def __init__(self, engine, vid):
                         super().__init__()
                         self.engine = engine
                         self.vid = vid
                         self.ok = False
+
                     def run(self):
                         def cb(p):
                             try:
@@ -584,19 +628,33 @@ class MainWindow(QMainWindow):
                                 self.progressed.emit(pct)
                             except Exception:
                                 pass
+
                         try:
-                            self.ok = bool(self.engine.download_voice(self.vid, progress_callback=cb))
+                            self.ok = bool(
+                                self.engine.download_voice(
+                                    self.vid, progress_callback=cb
+                                )
+                            )
                         except Exception as e:
                             try:
                                 from utils.logger import get_logger
-                                get_logger(__name__).error("Piper download failed: %s", e)
+
+                                get_logger(__name__).error(
+                                    "Piper download failed: %s", e
+                                )
                             except Exception:
                                 pass
                             self.ok = False
 
                 worker = _Worker(self.tts_engine, voice_id)
                 loop = QEventLoop()
-                worker.progressed.connect(lambda pct: (self.progress_bar.setValue(pct), self.progress_label.setText(f"Загрузка {voice_id}... {pct}%"), self.status_bar.showMessage(f"Загрузка {voice_id}... {pct}%")))
+                worker.progressed.connect(
+                    lambda pct: (
+                        self.progress_bar.setValue(pct),
+                        self.progress_label.setText(f"Загрузка {voice_id}... {pct}%"),
+                        self.status_bar.showMessage(f"Загрузка {voice_id}... {pct}%"),
+                    )
+                )
                 worker.finished.connect(loop.quit)
                 worker.start()
                 loop.exec()
@@ -624,7 +682,11 @@ class MainWindow(QMainWindow):
                     self.progress_bar.setValue(0)
                     self.progress_label.setText("Загрузка не удалась")
                     self.status_bar.showMessage("Загрузка не удалась")
-                    QMessageBox.warning(self, "Загрузка", f"Не удалось загрузить голос {voice_id}. Проверь интернет.")
+                    QMessageBox.warning(
+                        self,
+                        "Загрузка",
+                        f"Не удалось загрузить голос {voice_id}. Проверь интернет.",
+                    )
                     self._update_voice_status()
                     return False
             except Exception as e:
@@ -634,9 +696,11 @@ class MainWindow(QMainWindow):
         elif engine_name == "supertonic":
             try:
                 from tts.supertonic_wrapper import is_supertonic_downloaded
+
                 if is_supertonic_downloaded():
                     return True
                 from ui.download_dialog import show_download_dialog
+
                 ok = bool(show_download_dialog(self.tts_engine, self))
                 if ok:
                     self._update_voice_status()
@@ -648,7 +712,7 @@ class MainWindow(QMainWindow):
     def _save_settings(self):
         self.config.set("window_geometry", self.saveGeometry())
         self.config.save()
-    
+
     def _current_engine_name(self):
         try:
             return self.engine_combo.currentData()
@@ -662,12 +726,18 @@ class MainWindow(QMainWindow):
 
     # File
     def _on_open(self):
-        fp, _ = QFileDialog.getOpenFileName(self, self.translations.t("open"), self.config.last_directory, get_file_filter())
+        fp, _ = QFileDialog.getOpenFileName(
+            self,
+            self.translations.t("open"),
+            self.config.last_directory,
+            get_file_filter(),
+        )
         if fp:
             try:
                 self.text_edit.setPlainText(load_file(fp))
                 self.config.last_directory = str(Path(fp).parent)
                 from utils.security import sanitize_filename
+
                 self._current_file = sanitize_filename(Path(fp).stem)
                 self._update_stats()
             except Exception as e:
@@ -675,7 +745,13 @@ class MainWindow(QMainWindow):
 
     def _on_save_text(self):
         from utils.security import sanitize_filename
-        fp, _ = QFileDialog.getSaveFileName(self, self.translations.t("save"), self.config.last_directory, "Text Files (*.txt);;All Files (*)")
+
+        fp, _ = QFileDialog.getSaveFileName(
+            self,
+            self.translations.t("save"),
+            self.config.last_directory,
+            "Text Files (*.txt);;All Files (*)",
+        )
         if fp:
             try:
                 path = Path(fp)
@@ -687,12 +763,12 @@ class MainWindow(QMainWindow):
                 # Sanitize only the file name, keep the chosen directory.
                 safe = sanitize_filename(path.stem) + path.suffix.lower()
                 path = path.parent / safe
-                with open(path, 'w', encoding='utf-8') as f:
+                with open(path, "w", encoding="utf-8") as f:
                     f.write(self.text_edit.toPlainText())
                 self.config.last_directory = str(path.parent)
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
-    
+
     # Playback
     def _on_play(self):
         if not self._require_edge_consent_for_playback():
@@ -702,36 +778,38 @@ class MainWindow(QMainWindow):
             return
         if self.playback_manager.is_playing:
             self.playback_manager._stop_event.set()
-            if self.tts_engine and hasattr(self.tts_engine, 'stop'):
+            if self.tts_engine and hasattr(self.tts_engine, "stop"):
                 self.tts_engine.stop()
             self.playback_manager.stop()
-        
+
         text = self.text_edit.toPlainText()
         if not text.strip():
-            QMessageBox.warning(self, self.translations.t("warning"), self.translations.t("no_text"))
+            QMessageBox.warning(
+                self, self.translations.t("warning"), self.translations.t("no_text")
+            )
             return
-        
+
         sentences = split_into_sentences(text)
-        
+
         self.playback_manager.set_sentences(sentences)
         self.playback_manager.set_voice(self.voice_combo.currentData())
         self.playback_manager.set_volume(self.config.volume / 100)
         self.playback_manager.set_speed(self.config.speed)
         self.playback_manager.set_pitch(self.config.pitch)
-        
+
         self._export_start_time = time.time()
         self.total_label.setText(f"{self.translations.t('total')}: --:--")
-        
+
         self.playback_manager.play(0)
-    
+
     def _on_stop(self):
         if self.playback_manager:
             # Set stop signal FIRST — so synthesis thread sees it before exception
             self.playback_manager._stop_event.set()
-            if self.tts_engine and hasattr(self.tts_engine, 'stop'):
+            if self.tts_engine and hasattr(self.tts_engine, "stop"):
                 self.tts_engine.stop()
             self.playback_manager.stop()
-    
+
     def _on_preview(self):
         if not self.tts_engine:
             return
@@ -742,69 +820,80 @@ class MainWindow(QMainWindow):
             return
         if self.playback_manager.is_playing:
             self.playback_manager._stop_event.set()
-            if self.tts_engine and hasattr(self.tts_engine, 'stop'):
+            if self.tts_engine and hasattr(self.tts_engine, "stop"):
                 self.tts_engine.stop()
             self.playback_manager.stop()
-        
+
         text = self.text_edit.textCursor().selectedText()
         if not text:
-            QMessageBox.warning(self, self.translations.t("warning"), self.translations.t("select_text"))
+            QMessageBox.warning(
+                self, self.translations.t("warning"), self.translations.t("select_text")
+            )
             return
-        
-        text = text.replace('\u2029', ' ').replace('\u000b', ' ').replace('\r\n', ' ').replace('\r', ' ')
-        text = ''.join(c for c in text if c.isprintable() or c in ' \n\t')
-        text = ' '.join(text.split())
-        
+
+        text = (
+            text.replace("\u2029", " ")
+            .replace("\u000b", " ")
+            .replace("\r\n", " ")
+            .replace("\r", " ")
+        )
+        text = "".join(c for c in text if c.isprintable() or c in " \n\t")
+        text = " ".join(text.split())
+
         if len(text) > 200:
-            words = text[:200].rsplit(' ', 1)[0]
+            words = text[:200].rsplit(" ", 1)[0]
             text = words
-        
+
         self.playback_manager.set_sentences([text])
         self.playback_manager.set_voice(self.voice_combo.currentData())
         self.playback_manager.set_volume(self.config.volume / 100)
         self.playback_manager.set_speed(self.config.speed)
         self.playback_manager.set_pitch(self.config.pitch)
-        
+
         self.playback_manager.play(0)
-    
+
     # Settings
     def _on_vol_changed(self, v):
         self.config.volume = v
         self.vol_label.setText(f"{v}%")
         if self.playback_manager:
             self.playback_manager.set_volume(v / 100)
-    
+
     def _on_spd_changed(self, v):
         s = v / 100
         self.config.speed = s
         self.spd_label.setText(f"{s:.2f}x")
         if self.playback_manager:
             self.playback_manager.set_speed(s)
-    
+
     def _on_pitch_changed(self, v):
         p = v / 100
         self.config.pitch = p
         self.pitch_label.setText(f"{p:.2f}x")
         if self.playback_manager:
             self.playback_manager.set_pitch(p)
-    
+
     def _on_voice_changed(self, i):
         vid = self.voice_combo.currentData()
         if vid:
             self.config.voice = vid
             self.config.last_voice = vid
         self._update_voice_status()
-    
+
     def _on_theme_changed(self, i):
         self.config.theme = "dark" if i == 0 else "light"
         apply_theme(QApplication.instance(), self.config.theme)
-    
+
     def _on_lang_changed(self, i):
         lang = "ru" if i == 0 else "en"
         if lang == self.config.language:
             return
-        r = QMessageBox.question(self, self.translations.t("restart_title"), self.translations.t("restart_text"),
-                                  QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        r = QMessageBox.question(
+            self,
+            self.translations.t("restart_title"),
+            self.translations.t("restart_text"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         if r == QMessageBox.StandardButton.Yes:
             self.config.language = lang
             self.config.save()
@@ -814,42 +903,45 @@ class MainWindow(QMainWindow):
             self.lang_combo.blockSignals(True)
             self.lang_combo.setCurrentIndex(0 if self.config.language == "ru" else 1)
             self.lang_combo.blockSignals(False)
-    
+
     def _on_about(self):
-        QMessageBox.about(self, self.translations.t("about"), 
-            f"<h3>Text-to-Speech</h3><p>Version: {APP_VERSION}</p><p>cryptomonstrik@gmail.com</p>")
-    
+        QMessageBox.about(
+            self,
+            self.translations.t("about"),
+            f"<h3>Text-to-Speech</h3><p>Version: {APP_VERSION}</p><p>cryptomonstrik@gmail.com</p>",
+        )
+
     # Timer
     def _start_timer(self):
         self._elapsed_seconds = 0
         self.elapsed_label.setText(f"{self.translations.t('elapsed')}: 00:00")
         self._elapsed_timer.start(1000)
-    
+
     def _stop_timer(self):
         self._elapsed_timer.stop()
-    
+
     def _tick_elapsed(self):
         self._elapsed_seconds += 1
         m = self._elapsed_seconds // 60
         s = self._elapsed_seconds % 60
         self.elapsed_label.setText(f"{self.translations.t('elapsed')}: {m:02d}:{s:02d}")
-    
+
     # Callbacks
     def _on_play_started(self):
         self.status_bar.showMessage("Playing...")
         self._start_timer()
-    
+
     def _on_play_stopped(self):
         self._stop_timer()
         self.progress_bar.setValue(0)
         self.elapsed_label.setText(f"{self.translations.t('elapsed')}: 00:00")
         self.status_bar.showMessage(self.translations.t("ready"))
-    
+
     def _on_play_finished(self):
         self._stop_timer()
         self.progress_bar.setValue(100)
         self.status_bar.showMessage(self.translations.t("ready"))
-    
+
     def _on_playback_progress(self, p):
         if p > 0 and self._export_start_time > 0:
             elapsed = time.time() - self._export_start_time
@@ -857,14 +949,14 @@ class MainWindow(QMainWindow):
             m = int(total_est) // 60
             s = int(total_est) % 60
             self.total_label.setText(f"{self.translations.t('total')}: {m:02d}:{s:02d}")
-    
+
     def _on_position(self, pos):
         pass
-    
+
     def _on_export_started(self):
         self.status_bar.showMessage("Exporting...")
         self._start_timer()
-    
+
     def _on_export_progress(self, p):
         self.progress_bar.setValue(int(p * 100))
         if p > 0 and self._export_start_time > 0:
@@ -873,26 +965,30 @@ class MainWindow(QMainWindow):
             m = int(total_est) // 60
             s = int(total_est) % 60
             self.total_label.setText(f"{self.translations.t('total')}: {m:02d}:{s:02d}")
-    
+
     def _on_export_text(self, txt):
         self.progress_label.setText(txt)
         self.status_bar.showMessage(txt)
-    
+
     def _on_export_complete(self, fp):
         self._stop_timer()
         self.progress_bar.setValue(100)
         self.progress_label.setText(self.translations.t("export_done"))
         self.export_btn.setEnabled(True)
         self.save_btn.setEnabled(True)
-        QMessageBox.information(self, self.translations.t("info"), f"{self.translations.t('export_done')}\n{fp}")
-    
+        QMessageBox.information(
+            self,
+            self.translations.t("info"),
+            f"{self.translations.t('export_done')}\n{fp}",
+        )
+
     def _on_error(self, err):
         self._stop_timer()
         self.progress_bar.setValue(0)
         self.export_btn.setEnabled(True)
         self.save_btn.setEnabled(False)
         QMessageBox.critical(self, self.translations.t("error"), err)
-    
+
     def _on_export(self):
         if not self.tts_engine:
             return
@@ -903,33 +999,44 @@ class MainWindow(QMainWindow):
             return
         text = self.text_edit.toPlainText()
         if not text.strip():
-            QMessageBox.warning(self, self.translations.t("warning"), self.translations.t("no_text"))
+            QMessageBox.warning(
+                self, self.translations.t("warning"), self.translations.t("no_text")
+            )
             return
         vid = self.voice_combo.currentData()
         if not vid:
             return
-        
+
         fmt = self.fmt_combo.currentText()
         tmp = tempfile.NamedTemporaryFile(suffix=f".{fmt}", delete=False, prefix="tts_")
         self._temp_audio_path = tmp.name
         tmp.close()
-        
+
         self.export_btn.setEnabled(False)
         self.save_btn.setEnabled(False)
         self.progress_bar.setValue(0)
         self._export_start_time = time.time()
         self.total_label.setText(f"{self.translations.t('total')}: --:--")
-        
-        self.exporter.export_to_file(split_into_sentences(text), vid, self._temp_audio_path, fmt, self.config.speed, self.config.pitch)
-    
+
+        self.exporter.export_to_file(
+            split_into_sentences(text),
+            vid,
+            self._temp_audio_path,
+            fmt,
+            self.config.speed,
+            self.config.pitch,
+        )
+
     def _on_save_as(self):
         if not self._temp_audio_path or not os.path.exists(self._temp_audio_path):
             return
         fmt = self.fmt_combo.currentText()
-        
+
         # Generate filename: textname_engine_voice_datetime (sanitized).
         from datetime import datetime
+
         from utils.security import sanitize_filename
+
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         text_name = sanitize_filename(self._current_file or "tts")
@@ -937,27 +1044,40 @@ class MainWindow(QMainWindow):
         engine_name = sanitize_filename(self.engine_combo.currentData() or "tts")
 
         voice_id = self.voice_combo.currentData() or "voice"
-        voice_name = sanitize_filename(str(voice_id).replace("-", "_").replace(" ", "_"))
+        voice_name = sanitize_filename(
+            str(voice_id).replace("-", "_").replace(" ", "_")
+        )
 
         filename = f"{text_name}_{engine_name}_{voice_name}_{now}.{fmt}"
-        
-        fp, _ = QFileDialog.getSaveFileName(self, self.translations.t("save_as"), 
-            os.path.join(self._music_folder, filename), f"Audio Files (*.{fmt})")
+
+        fp, _ = QFileDialog.getSaveFileName(
+            self,
+            self.translations.t("save_as"),
+            os.path.join(self._music_folder, filename),
+            f"Audio Files (*.{fmt})",
+        )
         if fp:
             import shutil
+
             shutil.copy2(self._temp_audio_path, fp)
-            QMessageBox.information(self, self.translations.t("info"), f"{self.translations.t('saved')}\n{fp}")
-    
+            QMessageBox.information(
+                self,
+                self.translations.t("info"),
+                f"{self.translations.t('saved')}\n{fp}",
+            )
+
     def _update_stats(self):
         text = self.text_edit.toPlainText()
         s = get_text_statistics(text)
         t = self.translations
-        self.stats_label.setText(f"{s['sentences']} {t.t('sentences')}, {s['words']} {t.t('words')}, {s['characters']} {t.t('chars')}")
-    
+        self.stats_label.setText(
+            f"{s['sentences']} {t.t('sentences')}, {s['words']} {t.t('words')}, {s['characters']} {t.t('chars')}"
+        )
+
     def _update_preview_btn(self):
         t = self.translations
         self.preview_btn.setText(f"{t.t('preview')} (200)")
-    
+
     def closeEvent(self, event):
         try:
             if self.playback_manager and self.playback_manager.is_playing:
@@ -971,7 +1091,7 @@ class MainWindow(QMainWindow):
             pass
         # Release TTS resources (stop Edge subprocess if running).
         try:
-            if self.tts_engine and hasattr(self.tts_engine, 'stop'):
+            if self.tts_engine and hasattr(self.tts_engine, "stop"):
                 self.tts_engine.stop()
         except Exception:
             pass
