@@ -12,12 +12,23 @@ app_name = 'TTS_Lite'
 # Main script
 main_script = 'main.py'
 
-# Data files to include
+# Data files to include — include ffmpeg binary for imageio_ffmpeg
+from PyInstaller.utils.hooks import collect_data_files, collect_all
+try:
+    _ffmpeg_datas, _ffmpeg_binaries, _ffmpeg_hidden = collect_all('imageio_ffmpeg')
+except Exception:
+    _ffmpeg_datas, _ffmpeg_binaries, _ffmpeg_hidden = [], [], []
+try:
+    _onnx_datas, _onnx_binaries, _onnx_hidden = collect_all('onnxruntime')
+except Exception:
+    _onnx_datas, _onnx_binaries, _onnx_hidden = [], [], []
+
 datas = [
     ('resources/styles/*.qss', 'resources/styles'),
     ('resources/translations/*', 'resources/translations'),
     ('resources/icons/*', 'resources/icons'),
-]
+] + _ffmpeg_datas + _onnx_datas
+binaries = _ffmpeg_binaries + _onnx_binaries
 
 # Hidden imports — must include runtime deps that PyInstaller misses via static analysis
 hiddenimports = [
@@ -42,7 +53,7 @@ hiddenimports = [
     'pydoc',
     'xmlrpc',
     'xmlrpc.client',
-]
+] + _ffmpeg_hidden + _onnx_hidden
 
 # Excluded modules to speed up build (do NOT exclude unittest/pydoc/xmlrpc — supertonic needs them)
 excludes = [
@@ -73,7 +84,7 @@ excludes = [
 a = Analysis(
     [main_script],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

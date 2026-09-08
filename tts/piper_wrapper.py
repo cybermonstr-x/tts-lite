@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 # default ``verify=True`` is kept and made explicit).
 # Models live under the per-user cache dir with owner-only permissions.
 MODELS_DIR_NAME = ("tts_lite", "models", "piper")
-DOWNLOAD_TIMEOUT = 30  # seconds per request
+DOWNLOAD_TIMEOUT = 90  # seconds per request (VPN-friendly, was 30)
 
 # Available Piper voices for download.
 # SHA-256 hashes guard integrity (audit §1.2). If a hash is None, the file
