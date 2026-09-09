@@ -30,6 +30,27 @@ def _get_ffmpeg_path():
     return "ffmpeg"
 
 
+def _concat_with_crossfade(chunks: list[np.ndarray], sr: int, fade_ms: int = 8) -> np.ndarray:
+    """Concatenate Piper chunks with tiny crossfade to remove clicks at boundaries."""
+    if not chunks:
+        return np.array([], dtype=np.float32)
+    if len(chunks) == 1:
+        return chunks[0]
+    fade_n = int(sr * fade_ms / 1000)
+    out = chunks[0].astype(np.float32)
+    for nxt in chunks[1:]:
+        nxt = nxt.astype(np.float32)
+        if fade_n > 0 and len(out) >= fade_n and len(nxt) >= fade_n:
+            # linear crossfade on overlapping fade region
+            fade_out = np.linspace(1.0, 0.0, fade_n, dtype=np.float32)
+            fade_in = np.linspace(0.0, 1.0, fade_n, dtype=np.float32)
+            out[-fade_n:] = out[-fade_n:] * fade_out + nxt[:fade_n] * fade_in
+            out = np.concatenate([out, nxt[fade_n:]])
+        else:
+            out = np.concatenate([out, nxt])
+    return out
+
+
 def _configure_pydub():
     """Configure pydub to use bundled ffmpeg."""
     try:
@@ -38,6 +59,11 @@ def _configure_pydub():
             import pydub
 
             pydub.AudioSegment.converter = ffmpeg_path
+            # pydub also uses ffprobe for reading; point it to same binary if possible
+            try:
+                pydub.AudioSegment.ffprobe = ffmpeg_path.replace("ffmpeg", "ffprobe")
+            except Exception:
+                pass
             os.environ["FFMPEG_BINARY"] = ffmpeg_path
     except Exception:
         pass
@@ -74,14 +100,17 @@ class ExportWorker(QThread):
 
     def run(self):
         """Perform export."""
+        from utils.logger import get_logger
         from utils.security import validate_export_path, validate_synthesis_text
 
+        logger = get_logger(__name__)
         try:
             _configure_pydub()
 
             # Validate destination early (fail fast, no wasted synthesis).
             validated = validate_export_path(self.output_path, self.format_type)
             self.output_path = str(validated)
+            logger.info("Export start: %d sentences -> %s (%s)", len(self.sentences), self.output_path, self.format_type)
 
             all_audio = []
             sample_rate = None
@@ -107,6 +136,7 @@ class ExportWorker(QThread):
                     # Synthesis was stopped/cancelled.
                     return
                 audio, sr = result
+                logger.debug("Synthesized sentence %d: %d samples @ %d Hz", i + 1, len(audio), sr)
                 all_audio.append(audio)
                 sample_rate = sr
 
@@ -120,8 +150,13 @@ class ExportWorker(QThread):
                 raise ValueError("No audio generated (empty input?)")
 
             self.progress_text.emit("Saving file...")
+            logger.info("Saving %d chunks, total samples %d", len(all_audio), sum(len(a) for a in all_audio))
 
-            audio = np.concatenate(all_audio)
+            # Piper benefits from crossfade at chunk boundaries to avoid clicks
+            if len(all_audio) > 1 and self.voice_id.startswith(("ru_", "en_")):
+                audio = _concat_with_crossfade(all_audio, sample_rate or 22050)
+            else:
+                audio = np.concatenate(all_audio)
 
             if self.format_type == "wav":
                 self._save_wav(audio, sample_rate)
