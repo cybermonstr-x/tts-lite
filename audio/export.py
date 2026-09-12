@@ -152,8 +152,8 @@ class ExportWorker(QThread):
             self.progress_text.emit("Saving file...")
             logger.info("Saving %d chunks, total samples %d", len(all_audio), sum(len(a) for a in all_audio))
 
-            # Piper benefits from crossfade at chunk boundaries to avoid clicks
-            if len(all_audio) > 1 and self.voice_id.startswith(("ru_", "en_")):
+            # Apply crossfade to all TTS engines to remove clicks at chunk boundaries
+            if len(all_audio) > 1:
                 audio = _concat_with_crossfade(all_audio, sample_rate or 22050)
             else:
                 audio = np.concatenate(all_audio)

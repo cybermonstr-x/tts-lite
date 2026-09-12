@@ -87,6 +87,7 @@ TRANSLATIONS = {
         "tooltip_progress": "Прогресс синтеза аудио",
         "tooltip_elapsed": "Прошедшее время воспроизведения",
         "tooltip_total": "Общее время воспроизведения",
+        "waveform": "Визуализация волны",
         "edge_consent_title": "Edge TTS — передача данных",
         "edge_consent_text": "Движок Edge TTS отправляет текст в облачный сервис Microsoft "  # noqa: E501
         "для синтеза речи. Вы соглашаетесь с передачей данных?",
