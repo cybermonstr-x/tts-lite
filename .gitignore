@@ -1,52 +1,26 @@
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-*~
-
-# Build / packaging
-build/
-dist/
-installer/
-*.egg-info/
-*.spec.bak
+```
+# Compiled Python files
+*.pyc
+__pycache__/
 
 # Virtual environments
-venv/
 .venv/
+venv/
 env/
-ENV/
 
-# Python caches
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
+# Logs
+*.log
 
-# Environment & secrets — never commit sensitive data
+# Temporary files
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Environment files
 .env
 .env.local
 *.env.*
-secrets.json
-*_secrets.json
-credentials.json
-*.pem
-*.key
-
-# App runtime data (models, logs, exports, local settings)
-models/
-*.onnx
-*.onnx.json
-tts_lite.log
-
-# Editors / OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Local task description (not part of the repo)
-/задание на проверку проекта.txt
+```

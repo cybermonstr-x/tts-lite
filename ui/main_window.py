@@ -28,6 +28,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtGui import QPainter, QColor, QPen, QBrush, QPalette
+import numpy as np
 
 from audio.export import AudioExporter
 from audio.playback import PlaybackManager
@@ -55,6 +57,71 @@ def _get_music_folder():
     except Exception:
         pass
     return str(Path.home() / "Music")
+
+
+class WaveformWidget(QWidget):
+    """Widget for displaying audio waveform visualization."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.waveform_data = np.array([], dtype=np.float32)
+        self.setBackgroundRole(QPalette.Base)
+        self.setAutoFillBackground(True)
+        self.setMinimumHeight(80)
+
+    def set_waveform(self, audio_data: np.ndarray):
+        """Set waveform data and trigger repaint."""
+        self.waveform_data = audio_data.copy() if len(audio_data) > 0 else np.array([], dtype=np.float32)
+        self.update()
+
+    def paintEvent(self, event):
+        """Paint the waveform."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # Background
+        painter.fillRect(self.rect(), QColor(25, 25, 35))
+
+        if len(self.waveform_data) == 0:
+            # Draw placeholder text
+            painter.setPen(QColor(100, 100, 120))
+            painter.drawText(self.rect(), Qt.AlignCenter, "Волна появится после синтеза")
+            return
+
+        # Draw waveform
+        width = self.width()
+        height = self.height()
+        center_y = height // 2
+
+        # Calculate bar width and step
+        num_bars = min(width // 2, len(self.waveform_data) // 100 + 1)
+        if num_bars <= 0:
+            num_bars = 1
+
+        step = len(self.waveform_data) // num_bars
+        bar_width = max(1, (width - 20) // num_bars)
+
+        painter.setPen(QPen(QColor(59, 130, 246), 1))
+        painter.setBrush(QBrush(QColor(59, 130, 246)))
+
+        for i in range(num_bars):
+            start_idx = i * step
+            end_idx = min(start_idx + step, len(self.waveform_data))
+            if start_idx >= len(self.waveform_data):
+                break
+
+            chunk = self.waveform_data[start_idx:end_idx]
+            amplitude = np.max(np.abs(chunk)) if len(chunk) > 0 else 0
+
+            bar_height = int(amplitude * (height - 10))
+            bar_height = max(2, bar_height)
+
+            x = 10 + i * bar_width
+            y = center_y - bar_height // 2
+
+            painter.drawRect(x, y, bar_width - 1, bar_height)
+
+        painter.end()
 
 
 class MainWindow(QMainWindow):
@@ -311,6 +378,15 @@ class MainWindow(QMainWindow):
         self.lang_combo.currentIndexChanged.connect(self._on_lang_changed)
         row.addWidget(self.lang_combo)
         gl.addLayout(row)
+        layout.addWidget(g)
+
+        # Waveform visualization
+        g = QGroupBox(t.t("waveform"))
+        gl = QVBoxLayout(g)
+        self.waveform_widget = WaveformWidget()
+        self.waveform_widget.setMinimumHeight(80)
+        self.waveform_widget.setToolTip("Визуализация аудио-волны")
+        gl.addWidget(self.waveform_widget)
         layout.addWidget(g)
 
         layout.addStretch()
@@ -976,6 +1052,18 @@ class MainWindow(QMainWindow):
         self.progress_label.setText(self.translations.t("export_done"))
         self.export_btn.setEnabled(True)
         self.save_btn.setEnabled(True)
+        
+        # Update waveform visualization
+        try:
+            import wave
+            with wave.open(fp, 'rb') as wf:
+                frames = wf.readframes(wf.getnframes())
+                audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+                if hasattr(self, 'waveform_widget'):
+                    self.waveform_widget.set_waveform(audio)
+        except Exception:
+            pass
+        
         QMessageBox.information(
             self,
             self.translations.t("info"),
