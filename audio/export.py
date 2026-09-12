@@ -30,7 +30,9 @@ def _get_ffmpeg_path():
     return "ffmpeg"
 
 
-def _concat_with_crossfade(chunks: list[np.ndarray], sr: int, fade_ms: int = 8) -> np.ndarray:
+def _concat_with_crossfade(
+    chunks: list[np.ndarray], sr: int, fade_ms: int = 8
+) -> np.ndarray:
     """Concatenate Piper chunks with tiny crossfade to remove clicks at boundaries."""
     if not chunks:
         return np.array([], dtype=np.float32)
@@ -110,7 +112,12 @@ class ExportWorker(QThread):
             # Validate destination early (fail fast, no wasted synthesis).
             validated = validate_export_path(self.output_path, self.format_type)
             self.output_path = str(validated)
-            logger.info("Export start: %d sentences -> %s (%s)", len(self.sentences), self.output_path, self.format_type)
+            logger.info(
+                "Export start: %d sentences -> %s (%s)",
+                len(self.sentences),
+                self.output_path,
+                self.format_type,
+            )
 
             all_audio = []
             sample_rate = None
@@ -136,7 +143,9 @@ class ExportWorker(QThread):
                     # Synthesis was stopped/cancelled.
                     return
                 audio, sr = result
-                logger.debug("Synthesized sentence %d: %d samples @ %d Hz", i + 1, len(audio), sr)
+                logger.debug(
+                    "Synthesized sentence %d: %d samples @ %d Hz", i + 1, len(audio), sr
+                )
                 all_audio.append(audio)
                 sample_rate = sr
 
@@ -150,7 +159,11 @@ class ExportWorker(QThread):
                 raise ValueError("No audio generated (empty input?)")
 
             self.progress_text.emit("Saving file...")
-            logger.info("Saving %d chunks, total samples %d", len(all_audio), sum(len(a) for a in all_audio))
+            logger.info(
+                "Saving %d chunks, total samples %d",
+                len(all_audio),
+                sum(len(a) for a in all_audio),
+            )
 
             # Apply crossfade to all TTS engines to remove clicks at chunk boundaries
             if len(all_audio) > 1:

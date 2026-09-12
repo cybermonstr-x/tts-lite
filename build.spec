@@ -27,6 +27,10 @@ datas = [
     ('resources/styles/*.qss', 'resources/styles'),
     ('resources/translations/*', 'resources/translations'),
     ('resources/icons/*', 'resources/icons'),
+    ('promo.txt', '.'),
+    ('README.md', '.'),
+    ('README_RU.md', '.'),
+    ('resources/promo.txt', 'resources'),
 ] + _ffmpeg_datas + _onnx_datas
 binaries = _ffmpeg_binaries + _onnx_binaries
 

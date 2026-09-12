@@ -495,30 +495,35 @@ class MainWindow(QMainWindow):
             pass
 
     def _load_default_text(self):
-        """Load README.md into editor if empty (pet-project requirement #3)."""
+        """Load promo.txt (short promo) into editor if empty; fallback to README."""
         try:
             if self.text_edit.toPlainText().strip():
                 return
-            # Try frozen bundle first (dist/_internal or exe dir), then project root
             candidates = []
             if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-                candidates.append(Path(sys._MEIPASS) / "README.md")
-                candidates.append(Path(sys.executable).parent / "README.md")
-                candidates.append(
-                    Path(sys.executable).parent / "_internal" / "README.md"
-                )
+                candidates.append(Path(sys._MEIPASS) / "promo.txt")
+                candidates.append(Path(sys._MEIPASS) / "README_RU.md")
+                candidates.append(Path(sys.executable).parent / "promo.txt")
+                candidates.append(Path(sys.executable).parent / "_internal" / "promo.txt")
+            candidates.append(Path(__file__).parent.parent / "promo.txt")
+            candidates.append(Path(__file__).parent.parent / "README_RU.md")
             candidates.append(Path(__file__).parent.parent / "README.md")
             for p in candidates:
                 if p.is_file():
-                    text = p.read_text(encoding="utf-8", errors="ignore")
-                    # Use first ~8k chars to avoid huge initial text
+                    text = p.read_text(encoding="utf-8", errors="ignore").strip()
+                    if p.name == "promo.txt":
+                        # promo is already short, use as is
+                        self.text_edit.setPlainText(text)
+                        self._current_file = "promo"
+                        self._update_stats()
+                        return
+                    # README — trim to first ~8k
                     if len(text) > 8000:
                         text = text[:8000].rsplit("\n", 1)[0]
                     self.text_edit.setPlainText(text)
-                    self._current_file = "README"
+                    self._current_file = p.stem
                     self._update_stats()
                     return
-            # Fallback demo text if README not found
             self.text_edit.setPlainText(
                 "Привет! Это TTS Lite. Вставь свой текст сюда и нажми Play.\n\n"
                 "Hello! This is TTS Lite. Paste your text here and press Play."

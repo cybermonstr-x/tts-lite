@@ -15,8 +15,8 @@ def split_into_sentences(text: str) -> list[str]:
     # e.g. '«Производство».Иерархия' -> two sentences (no space after period)
     pattern = r'(?<=[.!?…»"\'])\s*(?=[А-ЯA-Z\d«"\'(])'
     # Fallback: also split on period/semicolon directly if no lookahead match
-    if re.search(r'[.!?…][А-ЯA-Z]', text):
-        text = re.sub(r'([.!?…])(?=[А-ЯA-Z])', r'\1 ', text)
+    if re.search(r"[.!?…][А-ЯA-Z]", text):
+        text = re.sub(r"([.!?…])(?=[А-ЯA-Z])", r"\1 ", text)
     sentences = re.split(pattern, text.strip())
 
     # Filter out empty sentences

@@ -1,0 +1,11 @@
+TTS Lite — лёгкая озвучка текста
+
+3 движка: Edge TTS (онлайн, нейросетевые голоса), Piper TTS (офлайн) и Supertonic 3 (офлайн, ONNX, 31 язык)
+18 голосов: 4 Edge + 4 Piper + 10 Supertonic
+Файлы: .txt, .rtf, .md — тёмная и светлая темы, RU/EN интерфейс
+
+Попробуй прямо сейчас:
+Привет! Это TTS Lite. Вставь свой текст сюда и нажми Play.
+Hello! This is TTS Lite. Paste your text here and press Play.
+
+Скачай: https://github.com/cybermonstr-x/tts-lite/releases | Сайт: https://cybermonstr-x.github.io/tts-lite/
