@@ -40,8 +40,8 @@ class TestSplitIntoSentences:
         text = "First sentence. Second sentence! Third sentence?"
         result = split_into_sentences(text)
         assert len(result) == 3
-        assert result[0] == "First sentence"
-        assert result[1] == "Second sentence"
+        assert result[0] == "First sentence."
+        assert result[1] == "Second sentence!"
         assert result[2] == "Third sentence?"
 
     def test_multiple_sentences_russian(self):
