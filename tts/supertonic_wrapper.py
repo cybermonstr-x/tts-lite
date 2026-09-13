@@ -45,7 +45,7 @@ def show_download_dialog_if_needed(parent=None) -> bool:
 
 
 class SupertonicEngine(TTSEngine):
-    """Supertonic 3 TTS engine - lightweight ONNX-based TTS with 31 languages."""
+    """Supertonic 3 TTS engine - lightweight ONNX-based TTS, Russian + English voices."""
 
     # Built-in voice styles with descriptive names
     VOICES = [

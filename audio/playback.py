@@ -16,9 +16,7 @@ class PlaybackWorker(QThread):
     playback_finished = Signal()
     error_occurred = Signal(str)
 
-    def __init__(
-        self, audio_queue: queue.Queue, sample_rate: int, crossfade_ms: int = 8
-    ):
+    def __init__(self, audio_queue: queue.Queue, sample_rate: int):
         super().__init__()
         self.audio_queue = audio_queue
         self.sample_rate = sample_rate
@@ -29,28 +27,6 @@ class PlaybackWorker(QThread):
         self._buffer = np.array([], dtype=np.float32)
         self._buffer_lock = threading.Lock()
         self.finished_event = threading.Event()
-        self._crossfade_ms = crossfade_ms
-        self._prev_chunk_tail = np.array([], dtype=np.float32)
-
-    def _apply_crossfade(self, chunk: np.ndarray) -> np.ndarray:
-        """Apply crossfade between previous chunk tail and current chunk."""
-        if self._crossfade_ms <= 0:
-            return chunk
-
-        fade_n = int(self.sample_rate * self._crossfade_ms / 1000)
-        if fade_n <= 0 or len(chunk) < fade_n:
-            return chunk
-
-        if len(self._prev_chunk_tail) == fade_n:
-            # Apply crossfade at the beginning of current chunk
-            fade_out = np.linspace(1.0, 0.0, fade_n, dtype=np.float32)
-            fade_in = np.linspace(0.0, 1.0, fade_n, dtype=np.float32)
-            crossfaded = self._prev_chunk_tail * fade_out + chunk[:fade_n] * fade_in
-            chunk = np.concatenate([crossfaded, chunk[fade_n:]])
-
-        # Save tail of current chunk for next crossfade
-        self._prev_chunk_tail = chunk[-fade_n:].copy()
-        return chunk
 
     def _audio_callback(self, outdata, frames, time_info, status):
         """Callback for sounddevice - fills output buffer."""
@@ -102,9 +78,6 @@ class PlaybackWorker(QThread):
                     # NOTE: volume is applied once in _audio_callback.
                     # Do NOT scale here to avoid double (squared) attenuation.
                     audio_chunk = np.asarray(audio_chunk, dtype=np.float32)
-
-                    # Apply crossfade to remove clicks between chunks
-                    audio_chunk = self._apply_crossfade(audio_chunk)
 
                     with self._buffer_lock:
                         self._buffer = np.concatenate([self._buffer, audio_chunk])
@@ -254,7 +227,7 @@ class PlaybackManager(QObject):
             self._is_playing = True
             self._stop_event.clear()
 
-        self._worker = PlaybackWorker(self._audio_queue, 22050, crossfade_ms=8)
+        self._worker = PlaybackWorker(self._audio_queue, 22050)
         self._worker.position_changed.connect(self._on_position_changed)
         self._worker.playback_finished.connect(self._on_playback_finished)
         self._worker.error_occurred.connect(self._on_error)

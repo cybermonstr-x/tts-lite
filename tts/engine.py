@@ -165,7 +165,7 @@ def get_available_engines() -> list[str]:
     except ImportError:
         pass
 
-    # Supertonic 3 (offline, ONNX, 31 languages)
+    # Supertonic 3 (offline, ONNX, Russian + English)
     try:
         from .supertonic_wrapper import SupertonicEngine
 

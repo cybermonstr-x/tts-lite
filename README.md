@@ -8,7 +8,7 @@ Lightweight text-to-speech desktop application for Windows with Edge TTS (online
 
 ## Features
 
-- **3 TTS engines**: Edge TTS (online, neural voices), Piper TTS (offline), Supertonic 3 (offline, ONNX, 31 languages)
+- **3 TTS engines**: Edge TTS (online, neural voices), Piper TTS (offline), Supertonic 3 (offline, ONNX, Russian + English)
 - **18 voices**: 4 Edge TTS + 4 Piper + 10 Supertonic
 - **File support**: `.txt`, `.rtf`, `.md`
 - **Playback**: Full text synthesis and 200-character selection preview
@@ -66,7 +66,7 @@ python main.py
 
 Voices are downloaded automatically on first use.
 
-### Supertonic 3 (offline, ONNX, 31 languages)
+### Supertonic 3 (offline, ONNX, Russian + English)
 
 | Voice | Description |
 |-------|-------------|
@@ -334,7 +334,7 @@ which permits proprietary derivatives as long as LGPL terms are honored
 modifications).
 
 **Q: How accurate is Supertonic 3?**  
-A: Supertonic 3 supports 31 languages with natural-sounding neural voices. Quality varies by language; best results for English, Russian, Spanish, and Chinese.
+A: Supertonic 3 supports Russian and English with natural-sounding neural voices. Quality varies by language; best results for English and Russian.
 
 **Q: How do I run tests?**  
 A: Install test dependencies with `pip install pytest pytest-cov pytest-qt`, then run `pytest tests/`. For UI tests on Linux/macOS, you need a display or Xvfb.

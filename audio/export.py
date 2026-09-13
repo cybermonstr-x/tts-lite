@@ -30,29 +30,6 @@ def _get_ffmpeg_path():
     return "ffmpeg"
 
 
-def _concat_with_crossfade(
-    chunks: list[np.ndarray], sr: int, fade_ms: int = 8
-) -> np.ndarray:
-    """Concatenate Piper chunks with tiny crossfade to remove clicks at boundaries."""
-    if not chunks:
-        return np.array([], dtype=np.float32)
-    if len(chunks) == 1:
-        return chunks[0]
-    fade_n = int(sr * fade_ms / 1000)
-    out = chunks[0].astype(np.float32)
-    for nxt in chunks[1:]:
-        nxt = nxt.astype(np.float32)
-        if fade_n > 0 and len(out) >= fade_n and len(nxt) >= fade_n:
-            # linear crossfade on overlapping fade region
-            fade_out = np.linspace(1.0, 0.0, fade_n, dtype=np.float32)
-            fade_in = np.linspace(0.0, 1.0, fade_n, dtype=np.float32)
-            out[-fade_n:] = out[-fade_n:] * fade_out + nxt[:fade_n] * fade_in
-            out = np.concatenate([out, nxt[fade_n:]])
-        else:
-            out = np.concatenate([out, nxt])
-    return out
-
-
 def _configure_pydub():
     """Configure pydub to use bundled ffmpeg."""
     try:
@@ -165,11 +142,8 @@ class ExportWorker(QThread):
                 sum(len(a) for a in all_audio),
             )
 
-            # Apply crossfade to all TTS engines to remove clicks at chunk boundaries
-            if len(all_audio) > 1:
-                audio = _concat_with_crossfade(all_audio, sample_rate or 22050)
-            else:
-                audio = np.concatenate(all_audio)
+            # Concatenate all audio chunks
+            audio = np.concatenate(all_audio)
 
             if self.format_type == "wav":
                 self._save_wav(audio, sample_rate)
