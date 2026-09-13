@@ -7,6 +7,10 @@ import wave
 import numpy as np
 from PySide6.QtCore import QObject, QThread, Signal
 
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 # Set ffmpeg path before pydub is imported to suppress warning
 try:
     import imageio_ffmpeg
@@ -28,6 +32,28 @@ def _get_ffmpeg_path():
     except ImportError:
         pass
     return "ffmpeg"
+
+
+def _concat_with_crossfade(
+    chunks: list[np.ndarray], sr: int, fade_ms: int = 8
+) -> np.ndarray:
+    """Concatenate audio chunks with tiny crossfade to remove clicks at boundaries."""
+    if not chunks:
+        return np.array([], dtype=np.float32)
+    if len(chunks) == 1:
+        return chunks[0]
+    fade_n = int(sr * fade_ms / 1000)
+    out = chunks[0].astype(np.float32)
+    for nxt in chunks[1:]:
+        nxt = nxt.astype(np.float32)
+        if fade_n > 0 and len(out) >= fade_n and len(nxt) >= fade_n:
+            fade_out = np.linspace(1.0, 0.0, fade_n, dtype=np.float32)
+            fade_in = np.linspace(0.0, 1.0, fade_n, dtype=np.float32)
+            out[-fade_n:] = out[-fade_n:] * fade_out + nxt[:fade_n] * fade_in
+            out = np.concatenate([out, nxt[fade_n:]])
+        else:
+            out = np.concatenate([out, nxt])
+    return out
 
 
 def _configure_pydub():
@@ -79,10 +105,8 @@ class ExportWorker(QThread):
 
     def run(self):
         """Perform export."""
-        from utils.logger import get_logger
         from utils.security import validate_export_path, validate_synthesis_text
 
-        logger = get_logger(__name__)
         try:
             _configure_pydub()
 
@@ -111,17 +135,32 @@ class ExportWorker(QThread):
                 try:
                     validate_synthesis_text(sentence)
                 except ValueError:
+                    logger.debug("SKIP sentence %d: validate failed", i)
                     continue  # skip empty sentences
 
+                logger.info(
+                    "Synth [%d/%d] voice=%s engine=%s text=%r",
+                    i + 1,
+                    total_sentences,
+                    self.voice_id,
+                    type(self.tts_engine).__name__,
+                    sentence[:60],
+                )
                 result = self.tts_engine.synthesize(
                     sentence, self.voice_id, self.speed, self.pitch
                 )
                 if result is None:
                     # Synthesis was stopped/cancelled.
+                    logger.info("Synth [%d] returned None (cancelled?)", i)
                     return
                 audio, sr = result
-                logger.debug(
-                    "Synthesized sentence %d: %d samples @ %d Hz", i + 1, len(audio), sr
+                logger.info(
+                    "Synth [%d] done: %d samples @ %d Hz, min=%.4f max=%.4f",
+                    i + 1,
+                    len(audio),
+                    sr,
+                    float(audio.min()),
+                    float(audio.max()),
                 )
                 all_audio.append(audio)
                 sample_rate = sr
@@ -136,14 +175,21 @@ class ExportWorker(QThread):
                 raise ValueError("No audio generated (empty input?)")
 
             self.progress_text.emit("Saving file...")
+            total_samples = sum(len(a) for a in all_audio)
             logger.info(
-                "Saving %d chunks, total samples %d",
+                "Saving %d chunks, total samples %d, sr=%s",
                 len(all_audio),
-                sum(len(a) for a in all_audio),
+                total_samples,
+                sample_rate,
             )
 
-            # Concatenate all audio chunks
-            audio = np.concatenate(all_audio)
+            # Concatenate all audio chunks with crossfade to remove clicks
+            audio = _concat_with_crossfade(all_audio, sample_rate or 22050)
+            logger.info(
+                "Concatenated: %d total samples, sr=%d", len(audio), sample_rate or 22050
+            )
+            if len(audio) == 0:
+                raise ValueError("Audio is empty after concatenation")
 
             if self.format_type == "wav":
                 self._save_wav(audio, sample_rate)
@@ -160,6 +206,12 @@ class ExportWorker(QThread):
 
     def _save_wav(self, audio: np.ndarray, sample_rate: int):
         """Save audio as WAV file."""
+        logger.info(
+            "_save_wav: %d samples, sr=%d, path=%s",
+            len(audio),
+            sample_rate,
+            self.output_path,
+        )
         audio_int = (audio * 32767).astype(np.int16)
 
         with wave.open(str(self.output_path), "wb") as wf:
@@ -167,6 +219,7 @@ class ExportWorker(QThread):
             wf.setsampwidth(2)
             wf.setframerate(sample_rate)
             wf.writeframes(audio_int.tobytes())
+        logger.info("_save_wav done: %d bytes", os.path.getsize(str(self.output_path)))
 
     def _save_mp3(self, audio: np.ndarray, sample_rate: int):
         """Save audio as MP3 file."""

@@ -137,8 +137,21 @@ class SupertonicEngine(TTSEngine):
                 speed=supertonic_speed,
             )
 
+            logger.info(
+                "Supertonic raw output: type=%s, duration=%.2fs",
+                type(wav).__name__,
+                duration,
+            )
+
             # Convert wav bytes to numpy array
             audio, sample_rate = self._wav_to_numpy(wav)
+            logger.info(
+                "Supertonic converted: %d samples, sr=%d, min=%.4f, max=%.4f",
+                len(audio),
+                sample_rate,
+                float(audio.min()) if len(audio) > 0 else 0,
+                float(audio.max()) if len(audio) > 0 else 0,
+            )
             return audio, sample_rate
 
         except Exception as e:
@@ -156,11 +169,17 @@ class SupertonicEngine(TTSEngine):
 
         TARGET_SR = 22050  # Match Edge TTS / Piper sample rate
 
+        logger.debug("_wav_to_numpy: input type=%s", type(wav_data).__name__)
+
         # Supertonic returns numpy array with shape (1, samples) as float32 at 44100 Hz
         if isinstance(wav_data, np.ndarray):
+            original_shape = wav_data.shape
             # Flatten if 2D (shape (1, samples))
             if wav_data.ndim > 1:
                 wav_data = wav_data.flatten()
+            logger.debug(
+                "_wav_to_numpy: ndarray shape=%s -> %d samples", original_shape, len(wav_data)
+            )
             # Resample from 44100 to 22050
             original_sr = 44100
             if original_sr != TARGET_SR:
