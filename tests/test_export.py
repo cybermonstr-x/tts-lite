@@ -31,8 +31,8 @@ class TestExportWorker:
         worker.run()
         assert out.exists()
         frames, sr = _read_wav(out)
-        # 8ms crossfade removes 176 samples (22050*0.008)
-        expected = 2205 * 2 - int(22050 * 0.008)
+        # 15ms crossfade removes 330 samples (22050*0.015)
+        expected = 2205 * 2 - int(22050 * 0.015)
         assert frames == expected and sr == 22050
 
     def test_skips_empty_sentences(self, tmp_path):

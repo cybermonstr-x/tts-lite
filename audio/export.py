@@ -35,21 +35,42 @@ def _get_ffmpeg_path():
 
 
 def _concat_with_crossfade(
-    chunks: list[np.ndarray], sr: int, fade_ms: int = 8
+    chunks: list[np.ndarray], sr: int, fade_ms: int = 15
 ) -> np.ndarray:
-    """Concatenate audio chunks with tiny crossfade to remove clicks at boundaries."""
+    """Concatenate audio chunks with fade-in/fade-out + crossfade to remove clicks.
+
+    Strategy:
+    1. Apply fade-out to end of each chunk (except last)
+    2. Apply fade-in to start of each chunk (except first)
+    3. Crossfade overlap at boundaries
+    This eliminates clicks from phase discontinuities at chunk boundaries.
+    """
     if not chunks:
         return np.array([], dtype=np.float32)
     if len(chunks) == 1:
         return chunks[0]
     fade_n = int(sr * fade_ms / 1000)
-    out = chunks[0].astype(np.float32)
-    for nxt in chunks[1:]:
-        nxt = nxt.astype(np.float32)
-        if fade_n > 0 and len(out) >= fade_n and len(nxt) >= fade_n:
-            fade_out = np.linspace(1.0, 0.0, fade_n, dtype=np.float32)
-            fade_in = np.linspace(0.0, 1.0, fade_n, dtype=np.float32)
-            out[-fade_n:] = out[-fade_n:] * fade_out + nxt[:fade_n] * fade_in
+    if fade_n < 2:
+        return np.concatenate([c.astype(np.float32) for c in chunks])
+
+    fade_out = np.linspace(1.0, 0.0, fade_n, dtype=np.float32)
+    fade_in = np.linspace(0.0, 1.0, fade_n, dtype=np.float32)
+
+    # Phase 1: apply per-chunk fades to remove boundary discontinuities
+    prepared = []
+    for i, chunk in enumerate(chunks):
+        c = chunk.astype(np.float32)
+        if i > 0 and len(c) >= fade_n:
+            c[:fade_n] = c[:fade_n] * fade_in
+        if i < len(chunks) - 1 and len(c) >= fade_n:
+            c[-fade_n:] = c[-fade_n:] * fade_out
+        prepared.append(c)
+
+    # Phase 2: crossfade at boundaries
+    out = prepared[0]
+    for nxt in prepared[1:]:
+        if len(out) >= fade_n and len(nxt) >= fade_n:
+            out[-fade_n:] = out[-fade_n:] + nxt[:fade_n]
             out = np.concatenate([out, nxt[fade_n:]])
         else:
             out = np.concatenate([out, nxt])
